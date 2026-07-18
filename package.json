@@ -1,0 +1,21 @@
+{
+  "name": "segenerator",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @segenerator/api & npm run dev --workspace @segenerator/web",
+    "build": "npm run build --workspace @segenerator/api && npm run build --workspace @segenerator/web",
+    "lint": "npm run lint --workspace @segenerator/api && npm run lint --workspace @segenerator/web",
+    "test": "npm run test --workspace @segenerator/api",
+    "typecheck": "npm run typecheck --workspace @segenerator/api && npm run typecheck --workspace @segenerator/web",
+    "template:create": "npm run template:create --workspace @segenerator/api",
+    "prisma:generate": "npm run prisma:generate --workspace @segenerator/api",
+    "prisma:migrate": "npm run prisma:migrate --workspace @segenerator/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

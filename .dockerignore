@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.env
+storage/reports/*.xlsx
+storage/snapshots/*.json
+umkm-479223-fddd8281bf40.json

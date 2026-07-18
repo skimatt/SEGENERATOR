@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProcessingMode {
+  strict
+  permissive
+}
+
+enum ImportStatus {
+  imported
+  validated
+  failed
+}
+
+enum ReportStatus {
+  generating
+  completed
+  failed
+}
+
+model DataSource {
+  id             String   @id @default(cuid())
+  spreadsheetId  String
+  sheetName      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  imports        Import[]
+  @@unique([spreadsheetId, sheetName])
+}
+
+model Import {
+  id             String         @id @default(cuid())
+  dataSourceId   String
+  snapshotId     String         @unique
+  period         String
+  sourceHash     String
+  rowCount       Int
+  mode           ProcessingMode
+  status         ImportStatus
+  importedAt     DateTime       @default(now())
+  dataSource     DataSource     @relation(fields: [dataSourceId], references: [id])
+  rawRows        RawRow[]
+  normalizedRows NormalizedRow[]
+  anomalies      Anomaly[]
+  reports        Report[]
+}
+
+model RawRow {
+  id              String @id @default(cuid())
+  importId        String
+  sourceRowNumber Int
+  raw             Json
+  import          Import @relation(fields: [importId], references: [id], onDelete: Restrict)
+  @@unique([importId, sourceRowNumber])
+}
+
+model NormalizedRow {
+  id              String @id @default(cuid())
+  importId        String
+  sourceRowNumber Int
+  canonical       Json
+  fingerprint     String
+  import          Import @relation(fields: [importId], references: [id], onDelete: Restrict)
+  @@index([importId, fingerprint])
+}
+
+model Anomaly {
+  id         String   @id @default(cuid())
+  importId   String
+  code       String
+  severity   String
+  message    String
+  entityType String
+  entityKey  String
+  sourceRows Int[]
+  metadata   Json
+  createdAt  DateTime @default(now())
+  import     Import   @relation(fields: [importId], references: [id], onDelete: Restrict)
+  @@index([importId, severity])
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  importId     String
+  filename     String
+  filePath     String
+  fileHash     String?
+  warningCount Int
+  errorCount   Int
+  status       ReportStatus
+  generatedAt  DateTime     @default(now())
+  import       Import       @relation(fields: [importId], references: [id])
+  manualEntries ReportManualEntry[]
+}
+
+model ReportManualEntry {
+  id        String   @id @default(cuid())
+  reportId  String
+  stableKey String
+  values    Json
+  updatedAt DateTime @updatedAt
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  @@unique([reportId, stableKey])
+}
+
+model Snapshot {
+  id             String   @id
+  spreadsheetId  String
+  sheetName      String
+  importedAt     DateTime
+  rowCount       Int
+  sourceHash     String
+  templateHash   String?
+  generatedBy    String
+  appVersion     String
+  processingMode String
+  filePath       String
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  level     String
+  requestId String?
+  module    String
+  action    String
+  message   String
+  metadata  Json
+}

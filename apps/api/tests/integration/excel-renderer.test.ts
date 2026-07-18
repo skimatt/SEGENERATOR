@@ -1,0 +1,75 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import ExcelJS from 'exceljs';
+import { afterEach, describe, expect, it } from 'vitest';
+import { processRawRows } from '../../src/modules/imports/pipeline.js';
+import { renderWorkbook } from '../../src/modules/excel/excel-renderer.js';
+import { readManualEntries } from '../../src/modules/excel/manual-preservation.js';
+import { baseRawRows } from '../fixtures/raw-rows.js';
+
+let temporaryDirectory: string | null = null;
+afterEach(async () => { if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true, force: true }); temporaryDirectory = null; });
+
+describe('Excel renderer', () => {
+  it('mempertahankan struktur resmi, formula aktif, print area, dan kode teks', async () => {
+    temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'segenerator-'));
+    const output = path.join(temporaryDirectory, 'report.xlsx');
+    const template = path.resolve(process.cwd(), '../../templates/LK PPK  TEMPLATES.xlsx');
+    await renderWorkbook(template, output, processRawRows(baseRawRows, '2026_T1'), new Map(), true);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(output);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['LK Termin 1', 'Uji Petik']);
+    const termin = workbook.getWorksheet('LK Termin 1');
+    const ujiPetik = workbook.getWorksheet('Uji Petik');
+    expect(termin).toBeDefined();
+    expect(ujiPetik).toBeDefined();
+    if (!termin || !ujiPetik) throw new Error('Sheet hasil tidak lengkap.');
+    expect(termin.getCell('M8').formula).toContain('IFERROR');
+    expect(termin.getCell('I8').numFmt).toBe('@');
+    expect(termin.pageSetup.printArea).toContain('B2:O');
+    expect(termin.getColumn('C').width).toBe(22);
+    expect(termin.getCell('B2').value).toBe('Beban Kerja Petugas Lapangan SE2026');
+    expect(termin.getCell('B2').isMerged).toBe(true);
+    expect(termin.properties.outlineProperties).toBeUndefined();
+    expect(termin.pageSetup.fitToPage).toBe(true);
+    expect(termin.getCell('E8').alignment.vertical).toBe('middle');
+    expect(ujiPetik.getCell('X4').value).toBe('2026_T1::ani@example.com');
+    expect(ujiPetik.getCell('T4').formula).toContain('IFERROR');
+    expect(ujiPetik.getCell('I4').formula).toContain('COUNTA');
+    expect(ujiPetik.getColumn('X').hidden).toBe(true);
+    expect(ujiPetik.getColumn('A').width).toBe(5.5);
+    expect(ujiPetik.getColumn('S').hidden).toBe(false);
+    expect(ujiPetik.getColumn('T').hidden).toBe(false);
+    expect(ujiPetik.getCell('S2').value).toBe('REALISASI OTOMATIS');
+    expect(ujiPetik.getCell('U2').value).toBe('REALISASI MANUAL');
+    expect(ujiPetik.getCell('S4').fill).toMatchObject({ fgColor: { argb: 'FFE2F0D9' } });
+    expect(ujiPetik.getCell('E4').fill).toMatchObject({ fgColor: { argb: 'FFFFF2CC' } });
+    expect(ujiPetik.getCell('E4').note).toBeUndefined();
+    expect(ujiPetik.views[0]?.state).toBe('frozen');
+  });
+
+  it('mempertahankan input manual dengan stable key saat generate ulang', async () => {
+    temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'segenerator-manual-'));
+    const first = path.join(temporaryDirectory, 'first.xlsx');
+    const second = path.join(temporaryDirectory, 'second.xlsx');
+    const template = path.resolve(process.cwd(), '../../templates/LK PPK  TEMPLATES.xlsx');
+    const pipeline = processRawRows(baseRawRows, '2026_T1');
+    await renderWorkbook(template, first, pipeline, new Map(), false);
+    const edited = new ExcelJS.Workbook();
+    await edited.xlsx.readFile(first);
+    const editableSheet = edited.getWorksheet('Uji Petik');
+    if (!editableSheet) throw new Error('Sheet Uji Petik tidak ditemukan.');
+    editableSheet.getCell('P4').value = 'Sesuai';
+    editableSheet.getCell('Q4').value = 'Rahmat Mulia';
+    editableSheet.getCell('E4').value = 7;
+    await edited.xlsx.writeFile(first);
+    const manual = await readManualEntries(first);
+    await renderWorkbook(template, second, pipeline, manual, false);
+    const regenerated = new ExcelJS.Workbook();
+    await regenerated.xlsx.readFile(second);
+    expect(regenerated.getWorksheet('Uji Petik')?.getCell('P4').value).toBe('Sesuai');
+    expect(regenerated.getWorksheet('Uji Petik')?.getCell('Q4').value).toBe('Rahmat Mulia');
+    expect(regenerated.getWorksheet('Uji Petik')?.getCell('E4').value).toBe(7);
+  });
+});

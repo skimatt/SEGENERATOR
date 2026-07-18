@@ -1,0 +1,108 @@
+export type ColumnMapping = Record<string, string>;
+
+export type SheetMapping = {
+  sheetName: string;
+  titleRow: number;
+  headerRow: number;
+  dataStartRow: number;
+  columns: ColumnMapping;
+};
+
+export const template1Mapping: SheetMapping = {
+  sheetName: 'LK Termin 1',
+  titleRow: 2,
+  headerRow: 7,
+  dataStartRow: 8,
+  columns: {
+    no: 'B',
+    namaPml: 'C',
+    emailPml: 'D',
+    namaPpl: 'E',
+    emailPpl: 'F',
+    kodeKecamatan: 'G',
+    kodeDesa: 'H',
+    kodeSls: 'I',
+    percentageSls: 'J',
+    target: 'K',
+    capaian: 'L',
+    percentage: 'M',
+    percentagePpl: 'N',
+    keterangan: 'O',
+    subslsKey: 'P',
+    uniqueTargetFlag: 'Q',
+    detailFlag: 'R',
+  },
+};
+
+export const template2Mapping: SheetMapping = {
+  sheetName: 'Uji Petik',
+  titleRow: 1,
+  headerRow: 3,
+  dataStartRow: 4,
+  columns: {
+    no: 'A',
+    namaPpl: 'B',
+    namaPml: 'C',
+    target: 'D',
+    targetUsaha: 'E',
+    targetKeluarga: 'F',
+    umkmDitemukan: 'G',
+    umkmTidakDitemukan: 'H',
+    umkmTotal: 'I',
+    usahaKeluargaDitemukan: 'J',
+    usahaKeluargaTidakDitemukan: 'K',
+    usahaKeluargaTotal: 'L',
+    keluargaDitemukan: 'M',
+    keluargaTidakDitemukan: 'N',
+    keluargaTotal: 'O',
+    hasilUjiPetik: 'P',
+    pemeriksa: 'Q',
+    tanggalPemeriksaan: 'R',
+    capaian: 'S',
+    percentage: 'T',
+    capaianKategoriLain: 'U',
+    percentageKategoriLain: 'V',
+    dokumentasi: 'W',
+    stableKey: 'X',
+    emailPpl: 'Y',
+    emailPml: 'Z',
+    jumlahSubSls: 'AA',
+    targetMissing: 'AB',
+    targetZero: 'AC',
+    noProgress: 'AD',
+    belowTarget: 'AE',
+    onTarget: 'AF',
+    aboveTarget: 'AG',
+    missingLink: 'AH',
+    reassignments: 'AI',
+    multiPml: 'AJ',
+    multiPpl: 'AK',
+    detection: 'AL',
+    penyebab: 'AM',
+    dataPindah: 'AN',
+    dataGanda: 'AO',
+    tindakLanjut: 'AP',
+    keteranganLapangan: 'AQ',
+  },
+};
+
+export const manualTemplate2Fields = [
+  'targetUsaha',
+  'targetKeluarga',
+  'umkmDitemukan',
+  'umkmTidakDitemukan',
+  'usahaKeluargaDitemukan',
+  'usahaKeluargaTidakDitemukan',
+  'keluargaDitemukan',
+  'keluargaTidakDitemukan',
+  'capaianKategoriLain',
+  'hasilUjiPetik',
+  'penyebab',
+  'dataPindah',
+  'dataGanda',
+  'pemeriksa',
+  'tanggalPemeriksaan',
+  'tindakLanjut',
+  'dokumentasi',
+  'keteranganLapangan',
+] as const;

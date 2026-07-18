@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply m-0 bg-slate-50 font-sans text-slate-800 antialiased; }
+  button { @apply transition-all duration-200; }
+}
+
+@layer components {
+  .card { @apply rounded-2xl border border-slate-200/80 bg-white shadow-card; }
+  .table-scroll { scrollbar-color: #cbd5e1 transparent; scrollbar-width: thin; }
+}

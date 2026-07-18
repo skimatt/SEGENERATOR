@@ -1,0 +1,85 @@
+# Sistem Generator Laporan LK PPK BPS Bireuen
+
+Aplikasi lokal tanpa login untuk mengimpor `DATA_MENTAH` dari Google Sheets, menjalankan pipeline data yang dapat diaudit, menampilkan dashboard, dan menghasilkan workbook Excel `LK Termin 1` serta `Uji Petik`.
+
+Status implementasi, keputusan teknis, hasil verifikasi terakhir, dan target lanjutan untuk melengkapi data Uji Petik dicatat di [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md). Agent berikutnya wajib membaca `AGENTS.md`, `VELUE.md`, dan dokumen handoff tersebut sebelum mengubah kode.
+
+## Menjalankan dengan Docker Compose
+
+1. Salin `.env.example` menjadi `.env`.
+2. Simpan file service account di luar Git dan isi `GOOGLE_SERVICE_ACCOUNT_FILE`, atau gunakan `GOOGLE_SERVICE_ACCOUNT_EMAIL` serta `GOOGLE_PRIVATE_KEY`. Docker Compose proyek ini memasang `umkm-479223-fddd8281bf40.json` sebagai secret file read-only.
+3. Bagikan spreadsheet `1zpMTFkKYVDdo8dyFy_ZJRGXFXFuVvMZSsPCzhD_0jfg` kepada email service account sebagai Viewer.
+4. Pastikan sheet sumber bernama `DATA_MENTAH`.
+5. Jalankan:
+
+```powershell
+docker compose up --build
+```
+
+Dashboard tersedia di `http://localhost:5173` dan API di `http://localhost:3000/api`.
+
+Migration PostgreSQL dijalankan otomatis saat container API mulai. Folder `storage/reports` dan `storage/snapshots` dipasang sebagai volume lokal agar hasil tetap tersedia setelah container dibuat ulang.
+
+## Menjalankan tanpa Docker
+
+Prasyarat: Node.js LTS dan PostgreSQL.
+
+```powershell
+Copy-Item .env.example .env
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run template:create
+npm run dev
+```
+
+## Alur sistem
+
+```text
+Google Sheets API
+→ raw snapshot
+→ header resolver
+→ normalizer
+→ identity resolver
+→ assignment/deduplication
+→ aggregation
+→ anomaly detection
+→ ExcelJS renderer
+→ XLSX + audit log
+```
+
+Mode produksi default adalah `strict`. Kode SubSLS kosong, angka invalid, konflik target, dan identitas yang tidak dapat ditentukan memblokir ekspor. Mode `permissive` tetap membuat laporan dengan label `PERLU VERIFIKASI` dan rincian anomali di `Uji Petik`.
+
+Target wilayah dihitung sekali per `periode::kodeSubSls`. Exact duplicate tidak masuk agregasi, sementara multi-PPL dan multi-PML tetap terlacak. Data mentah disimpan pada snapshot JSON dan PostgreSQL.
+
+## Template Excel
+
+Generator menggunakan template resmi [templates/LK PPK  TEMPLATES.xlsx](templates/LK%20PPK%20%20TEMPLATES.xlsx). Renderer mempertahankan struktur dua sheet, style, merge, ukuran, area cetak, serta kolom manual Uji Petik melalui stable key.
+
+Kolom manual `Uji Petik` dibaca dari laporan terakhir dan dipetakan kembali dengan stable key `periode::pplKey`. File lama tidak dihapus atau ditimpa.
+
+## Pemeriksaan kualitas
+
+```powershell
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+Unit test mencakup normalisasi, identitas, parsing angka, deduplikasi, target unik, multi-PPL, konflik target, persentase, dan anomali. Integration test memverifikasi nama sheet, formula, tipe kode SubSLS, freeze pane, print area, serta stable key workbook.
+
+## Endpoint utama
+
+- `GET /api/health`
+- `GET /api/dashboard`
+- `POST /api/imports/google-sheets`
+- `GET /api/imports/:id`
+- `POST /api/imports/:id/validate`
+- `GET /api/imports/:id/anomalies`
+- `POST /api/reports/generate`
+- `GET /api/reports`
+- `GET /api/reports/:id/download`
+- `GET /api/snapshots`
+- `GET /api/snapshots/:id/diff`
+- `GET /api/audit-log`
