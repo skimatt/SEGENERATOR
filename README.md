@@ -6,6 +6,8 @@ Status implementasi, keputusan teknis, hasil verifikasi terakhir, dan target lan
 
 ## Menjalankan dengan Docker Compose
 
+Panduan lengkap dari instalasi Docker, persiapan credential, startup, backup, restore, pemindahan komputer, dan troubleshooting tersedia di [Panduan Docker](docs/DOCKER_SETUP.md).
+
 1. Salin `.env.example` menjadi `.env`.
 2. Simpan file service account di luar Git dan isi `GOOGLE_SERVICE_ACCOUNT_FILE`, atau gunakan `GOOGLE_SERVICE_ACCOUNT_EMAIL` serta `GOOGLE_PRIVATE_KEY`. Docker Compose proyek ini memasang `umkm-479223-fddd8281bf40.json` sebagai secret file read-only.
 3. Bagikan spreadsheet `1zpMTFkKYVDdo8dyFy_ZJRGXFXFuVvMZSsPCzhD_0jfg` kepada email service account sebagai Viewer.

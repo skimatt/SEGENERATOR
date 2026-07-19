@@ -4,7 +4,9 @@ dist
 **/dist
 .git
 .env
+History.txt
 storage/reports/*.xlsx
 storage/snapshots/*.json
 umkm-479223-fddd8281bf40.json
 data/*.xlsx
+data/*.json

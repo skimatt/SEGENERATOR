@@ -4,6 +4,8 @@ Dokumen ini adalah jejak ringkas agar pengembangan dapat dilanjutkan tanpa mengu
 
 ## Status terbaru — 19 Juli 2026
 
+- Docker Compose sudah diperkuat untuk pemindahan komputer: project name stabil, restart policy, healthcheck tiga layanan, port configurable, credential host path configurable, template read-only, API hanya bind ke localhost, dan PostgreSQL dikonfigurasi melalui `.env`.
+- Panduan instalasi, startup, backup, restore, akses LAN, dan troubleshooting tersedia di `docs/DOCKER_SETUP.md`.
 - Dashboard React sudah didesain ulang menjadi alur ringkas import → tinjau kualitas → generate Excel, responsif, dan hanya menampilkan kontrol yang berfungsi.
 - Kartu sumber data menampilkan sheet aktif `DATA_MENTAH2` dan tombol langsung ke Google Spreadsheet.
 - Riwayat laporan ditempatkan pada panel samping berukuran tetap dengan scroll dan tombol unduh per file.
@@ -192,3 +194,20 @@ Jangan memasukkan service account JSON ke Git. Docker Compose mengharapkan crede
 ## Catatan dependency audit
 
 `npm audit --audit-level=high` pada 18 Juli 2026 melaporkan dua vulnerability **moderate** pada dependency transitif `uuid` yang dibawa ExcelJS. Tidak ada temuan high atau critical. Saran otomatis `npm audit fix --force` akan menurunkan ExcelJS ke versi mayor lama, sehingga tidak diterapkan karena berisiko merusak kompatibilitas template. Tinjau kembali saat ExcelJS/dependency transitif menyediakan upgrade kompatibel dan jalankan seluruh regression test workbook setelah perubahan.
+
+## Audit final container — 19 Juli 2026
+
+- `docker compose config --quiet`: lulus;
+- `docker compose build --no-cache`: lulus untuk PostgreSQL, API, dan web;
+- `docker compose up -d`: lulus, ketiga service berstatus healthy;
+- API health: sukses dengan status `ok`;
+- dashboard web: HTTP 200;
+- sumber runtime terkonfirmasi `DATA_MENTAH2` dengan 57 PML, 393 PPL pada agregasi PML, dan 2.185 SubSLS;
+- import langsung Google Sheets dari container: lulus, 2.190 baris, target 198.770, capaian 109.884;
+- generate permissive dari container: lulus dengan hash file `7503db74dd53ab0ea65345abaaf2f7f896651d6be2f5ee6d53cdb146ad1e7419`;
+- workbook audit dapat dibaca ulang ExcelJS tanpa error: sheet `LK Termin 1` dan `Uji Petik`, masing-masing 3.164 dan 1.966 cell formula, serta print area aktif;
+- prosedur backup PostgreSQL berhasil menghasilkan dump custom-format sebesar 14.908.723 byte dan menyalinnya keluar container;
+- TypeScript, lint, 40 unit/integration test, dan production build: lulus;
+- `npm audit --audit-level=high`: tidak ada high/critical; dua temuan moderate transitif tetap dicatat di atas.
+
+Panduan pemasangan, pemindahan data, backup/restore, operasi, dan troubleshooting tersedia di `docs/DOCKER_SETUP.md`.

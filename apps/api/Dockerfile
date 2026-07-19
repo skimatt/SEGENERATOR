@@ -16,4 +16,4 @@ COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/api/prisma ./apps/api/prisma
 COPY --from=build /app/templates ./templates
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/src/main.js"]
+CMD ["sh", "-c", "npx --no-install prisma migrate deploy --schema apps/api/prisma/schema.prisma && exec node apps/api/dist/src/main.js"]

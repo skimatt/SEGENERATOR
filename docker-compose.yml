@@ -1,15 +1,20 @@
+name: segenerator
+
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: segenerator
-      POSTGRES_PASSWORD: segenerator
-      POSTGRES_DB: segenerator
+      POSTGRES_USER: ${POSTGRES_USER:-segenerator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-segenerator}
+      POSTGRES_DB: ${POSTGRES_DB:-segenerator}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U segenerator -d segenerator"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
+    shm_size: 128mb
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -17,20 +22,32 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    init: true
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://segenerator:segenerator@postgres:5432/segenerator?schema=public
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-segenerator}:${POSTGRES_PASSWORD:-segenerator}@postgres:5432/${POSTGRES_DB:-segenerator}?schema=public
       GOOGLE_SERVICE_ACCOUNT_FILE: /run/secrets/google-service-account.json
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${API_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     volumes:
-      - ./templates:/app/templates
+      - ./templates:/app/templates:ro
       - ./storage:/app/storage
       - ./data:/app/data:ro
-      - ./umkm-479223-fddd8281bf40.json:/run/secrets/google-service-account.json:ro
+      - type: bind
+        source: ${GOOGLE_SERVICE_ACCOUNT_HOST_FILE:-./umkm-479223-fddd8281bf40.json}
+        target: /run/secrets/google-service-account.json
+        read_only: true
 
   web:
     build:
@@ -38,10 +55,18 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         VITE_API_URL: /api
+    restart: unless-stopped
     ports:
-      - "5173:80"
+      - "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-5173}:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:
