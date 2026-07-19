@@ -2,6 +2,28 @@
 
 Dokumen ini adalah jejak ringkas agar pengembangan dapat dilanjutkan tanpa mengulang audit yang sudah selesai. Aturan bisnis tetap mengacu pada `AGENTS.md`, kemudian `VELUE.md`. Jika ada konflik, ikuti urutan prioritas yang ditetapkan di `AGENTS.md`.
 
+## Status terbaru — 19 Juli 2026
+
+- Dashboard React sudah didesain ulang menjadi alur ringkas import → tinjau kualitas → generate Excel, responsif, dan hanya menampilkan kontrol yang berfungsi.
+- Kartu sumber data menampilkan sheet aktif `DATA_MENTAH2` dan tombol langsung ke Google Spreadsheet.
+- Riwayat laporan ditempatkan pada panel samping berukuran tetap dengan scroll dan tombol unduh per file.
+- Import riil `DATA_MENTAH2` memproses 2.190 baris menjadi 2.185 SubSLS unik, 57 PML, 393 `pplKey`, target unik 198.770, dan capaian 109.884.
+- Lima SubSLS memiliki multi-assignment; empat baris assignment mempunyai ID PPL tetapi nama/email berisi `-`; identitas tersebut tidak boleh ditebak.
+- Ekspor strict saat ini diblokir oleh tepat 28 anomali `UJI_PETIK_TARGET_MISMATCH`: target SubSLS pada workbook progres berbeda dengan `DATA_MENTAH2`. Permissive tetap dapat membuat workbook dengan catatan verifikasi.
+- Kolom UMKM ditemukan/tak ditemukan, Keluarga ditemukan/tak ditemukan, nama pelaksana Uji Petik, dan tanggal pelaksanaan belum memiliki sumber resmi sehingga tetap manual dan dipertahankan saat regenerate.
+- Verifikasi terakhir: 40 test lulus, type-check lulus, lint lulus, build production lulus, Docker Compose aktif, dan QA visual dashboard lulus.
+
+Bagian audit bertanggal 18 Juli di bawah merupakan jejak data sebelum `DATA_MENTAH2` menjadi sumber aktif. Jika angkanya berbeda, status 19 Juli ini yang berlaku untuk runtime terbaru.
+
+## Pembaruan sumber assignment — 18 Juli 2026
+
+- Sumber aktif dialihkan ke `DATA_MENTAH2` pada spreadsheet yang sama.
+- `DATA_MENTAH` tetap menjadi alternatif rollback melalui `GOOGLE_SHEET_NAME`.
+- Header `Capaian PPL` dipetakan ke `capaian` canonical.
+- `ID PPL` dan `Capaian PML` dipertahankan dalam raw snapshot untuk audit; email tetap identitas utama dan `Capaian PML` tidak dijumlahkan ke capaian laporan.
+- Audit sebelum integrasi: 2.190 baris, 2.185 SubSLS unik, total Capaian PPL 109.884, target unik 198.770, lima SubSLS multi-assignment, dan satu SubSLS tanpa target.
+- Perubahan target besar `1110080054000202` dari 583 menjadi 26 harus tetap ditinjau sebagai perubahan antar-snapshot.
+
 ## Status per 18 Juli 2026
 
 Implementasi saat ini sudah mencakup:
@@ -9,7 +31,7 @@ Implementasi saat ini sudah mencakup:
 - monorepo npm dengan API Fastify/TypeScript dan dashboard React/Vite/Tailwind;
 - PostgreSQL dan Prisma untuk metadata import, snapshot, anomali, laporan, data manual, dan audit;
 - Docker Compose untuk PostgreSQL, API, dan web;
-- pembacaan Google Sheets `DATA_MENTAH` memakai service account file atau environment variable;
+- pembacaan Google Sheets `DATA_MENTAH2` memakai service account file atau environment variable; `DATA_MENTAH` dipertahankan sebagai alternatif rollback;
 - pipeline Import → Normalisasi → Validasi/Identity → Assignment/Deduplication → Aggregation → Anomaly Detection → Report Model → ExcelJS;
 - dashboard tanpa login sesuai keputusan eksplisit pemilik untuk versi lokal saat ini;
 - preview data mentah, statistik utama, anomali, riwayat laporan, dan unduhan;
@@ -27,7 +49,7 @@ Import riil terakhir yang sudah diproses:
 |---|---:|
 | Baris sumber/detail | 2.185 |
 | PML | 58 |
-| PPL | 393 |
+| PPL unik (`pplKey`) | 390 |
 | SubSLS unik | 2.185 |
 | Target unik | 199.309 |
 | Capaian | 109.536 |
@@ -36,11 +58,11 @@ Import riil terakhir yang sudah diproses:
 
 Referensi audit lokal terakhir:
 
-- import ID: `cmrphtvcc0002n001pl3lncb6`;
-- snapshot ID: `8f4c9435-7e82-4157-a295-425dbc64ab0b`;
-- report ID: `cmrplguzt0001mg01ilrhbw3o`;
-- output lokal: `storage/reports/LK_PPK_BIREUEN_2026_TERMIN_1_202607180654.xlsx`;
-- SHA-256 output: `47e5002d13d010601a0cf5b2e1f0767e6cd52f6317e030ecae4e2d00dc9f6562`.
+- import ID: `cmrqj9npt00azny01lu3iljmj`;
+- snapshot ID: `21cd3a96-fb5a-4506-a53e-f0a52dd1aeb9`;
+- report ID: `cmrqjczu004qnny01tuzizprz`;
+- output lokal: `storage/reports/LK_PPK_BIREUEN_2026_TERMIN_1_202607182242.xlsx`;
+- SHA-256 output: `2239c8fe38e6b59299103705ee9136db3c11373d7e1a3b7073fe3fd0cd2d4b78`.
 
 File laporan dan snapshot sengaja tidak masuk Git. Angka di atas adalah jejak audit, bukan fixture yang boleh dianggap selalu sama untuk import berikutnya.
 
@@ -90,7 +112,37 @@ Nilai tersebut tidak boleh ditebak atau diturunkan dengan pembagian asumtif.
 
 ## Target implementasi berikutnya: sumber Uji Petik lengkap
 
-Sebelum mengubah model bisnis, pastikan pemilik menentukan lokasi sumber resmi data Uji Petik: tab Google Sheets baru, kolom tambahan, atau file referensi lain. Setelah sumber dipastikan, kerjakan berurutan:
+### Pembaruan 18 Juli 2026 — workbook progres lokal
+
+Sumber tambahan sudah dipilih: `data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx`. Workbook tidak diunggah ke Google Sheets; API membacanya read-only dan menggabungkannya dengan sheet assignment aktif melalui Kode SubSLS.
+
+Mapping yang sudah diimplementasikan:
+
+- Target Usaha dari `USAHA PERUSAHAAN`;
+- Target Keluarga dari Target U&K dikurangi Target Usaha per SubSLS;
+- Usaha Keluarga ditemukan/tak ditemukan dari `USAHA KELUARGA`;
+- hash sumber dan jumlah SubSLS yang cocok disimpan pada kolom audit tersembunyi workbook hasil;
+- manual override lama tetap dipertahankan;
+- SubSLS multi-PPL tidak dialokasikan agar tidak menggandakan angka.
+
+Verifikasi sumber dan output riil:
+
+- hash workbook progres: `338d8353692cc3bed326b9640e863e4fa7b4222fb0e03ce4f22b0c2c31434fc8`;
+- label pembaruan sumber: `17 Jul 2026, 08.09`;
+- 2.185/2.185 SubSLS cocok tanpa anomali join;
+- 390 stable key PPL unik tanpa duplikasi;
+- total Target Usaha 64.600;
+- total Target Keluarga 134.709;
+- total Usaha Keluarga ditemukan 10.909;
+- total Usaha Keluarga tak ditemukan 10.877;
+- workbook final berhasil dibuka Microsoft Excel tanpa repair;
+- visual QA Uji Petik lulus dan seluruh field source-backed berwarna hijau.
+
+Angka PPL lama 393 berasal dari penjumlahan PPL di dalam setiap kelompok PML dan menggandakan tiga PPL multi-PML. Dashboard dan Uji Petik sekarang memakai 390 `pplKey` unik. LK Termin 1 tetap mempertahankan struktur PML → PPL → SubSLS.
+
+Yang tetap membutuhkan sumber/keputusan resmi: UMKM ditemukan/tak ditemukan dan Keluarga ditemukan/tak ditemukan. Jangan memetakan `USAHA PERUSAHAAN` sebagai UMKM tanpa konfirmasi definisi resmi.
+
+Untuk field Uji Petik yang masih kosong, pastikan pemilik menentukan sumber resmi atau definisi mapping sebelum mengubah model bisnis. Setelah sumber dipastikan, kerjakan berurutan:
 
 1. Catat nama sheet dan header aktual; jangan mengunci posisi kolom.
 2. Tambahkan canonical schema dan alias header untuk field Uji Petik berdasarkan bukti sumber.
@@ -106,7 +158,7 @@ Sebelum mengubah model bisnis, pastikan pemilik menentukan lokasi sumber resmi d
 ## Keputusan dan batasan yang harus dipertahankan
 
 - Spreadsheet utama: `1zpMTFkKYVDdo8dyFy_ZJRGXFXFuVvMZSsPCzhD_0jfg`.
-- Sheet sumber utama: `DATA_MENTAH`.
+- Sheet sumber utama: `DATA_MENTAH2`; alternatif rollback: `DATA_MENTAH`.
 - Template resmi yang digunakan runtime: `templates/LK PPK  TEMPLATES.xlsx`.
 - Email adalah identitas utama PPL/PML; nama tidak boleh menjadi dasar penggabungan tanpa warning fallback.
 - Kode SubSLS selalu string.

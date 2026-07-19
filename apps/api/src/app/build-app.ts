@@ -11,7 +11,9 @@ import { AppError } from '../shared/errors/app-error.js';
 import type { CanonicalRow, ProcessingMode } from '../shared/types/domain.js';
 import { aggregateRows } from '../modules/aggregation/aggregation-engine.js';
 import { ImportService } from '../modules/imports/import-service.js';
-import { ReportService } from '../modules/reports/report-service.js';
+import { isStrictBlockingCode, ReportService } from '../modules/reports/report-service.js';
+import { ProgressWorkbookReader } from '../modules/uji-petik/progress-workbook-reader.js';
+import { aggregateUjiPetikByPpl } from '../modules/uji-petik/uji-petik-aggregator.js';
 import { success } from './response.js';
 
 const modeSchema = z.enum(['strict', 'permissive']);
@@ -21,7 +23,8 @@ const reportBodySchema = z.object({ importId: z.string().min(1), mode: modeSchem
 export function buildApp(config: AppConfig, prisma: PrismaClient) {
   const app = Fastify({ logger: { level: config.NODE_ENV === 'test' ? 'silent' : 'info', redact: ['req.headers.authorization', 'GOOGLE_PRIVATE_KEY'] }, bodyLimit: 1_000_000 });
   const imports = new ImportService(prisma, config);
-  const reports = new ReportService(prisma, config);
+  const progressWorkbookReader = new ProgressWorkbookReader();
+  const reports = new ReportService(prisma, config, progressWorkbookReader);
 
   app.register(cors, { origin: config.WEB_ORIGIN });
   app.register(helmet);
@@ -44,7 +47,7 @@ export function buildApp(config: AppConfig, prisma: PrismaClient) {
     const result = await imports.importFromGoogleSheets(mode, parsed.period ?? config.REPORT_PERIOD);
     return reply.status(201).send(success({ importId: result.importId, snapshotId: result.snapshotId, stats: {
       rows: result.pipeline.rows.length, pml: result.pipeline.aggregation.pmls.length,
-      ppl: result.pipeline.aggregation.pmls.reduce((total, pml) => total + pml.ppls.length, 0),
+      ppl: result.pipeline.aggregation.ppls.length,
       subsls: result.pipeline.aggregation.subsls.length, target: result.pipeline.aggregation.totalTarget,
       capaian: result.pipeline.aggregation.totalCapaian, percentage: result.pipeline.aggregation.percentage,
       anomalies: result.pipeline.anomalies.length,
@@ -69,16 +72,32 @@ export function buildApp(config: AppConfig, prisma: PrismaClient) {
 
   app.get('/api/dashboard', async () => {
     const latest = await imports.latest();
-    if (!latest) return success({ latestImport: null, stats: null, rawPreview: [], template1Preview: [], template2Preview: [], anomalies: [], reports: [] });
+    const configuredSource = { spreadsheetId: config.GOOGLE_SPREADSHEET_ID, sheetName: config.GOOGLE_SHEET_NAME };
+    if (!latest) return success({ configuredSource, latestImport: null, stats: null, rawPreview: [], template1Preview: [], template2Preview: [], anomalies: [], reports: [] });
     const rows = latest.normalizedRows.map((item) => item.canonical as unknown as CanonicalRow);
     const aggregation = aggregateRows(rows);
+    const progressSource = await progressWorkbookReader.read(config.PROGRESS_WORKBOOK_PATH);
+    const ujiPetik = aggregateUjiPetikByPpl(rows, progressSource);
+    const sourceAnomalies = [...latest.anomalies, ...ujiPetik.anomalies];
+    const anomalySummary = {
+      total: sourceAnomalies.length,
+      blocking: sourceAnomalies.filter((item) => isStrictBlockingCode(item.code)).length,
+      errors: sourceAnomalies.filter((item) => item.severity === 'error' || item.severity === 'critical').length,
+      warnings: sourceAnomalies.filter((item) => item.severity === 'warning').length,
+    };
     const template1Preview = aggregation.pmls.flatMap((pml) => pml.ppls.flatMap((ppl) => ppl.subsls.map((subsls) => ({ pml: pml.namaPml, ppl: ppl.namaPpl, kodeSubSls: subsls.kodeSubSls, namaSls: subsls.namaSls, target: subsls.target, capaian: subsls.capaian, percentage: subsls.percentage, status: subsls.status })))).slice(0, 100);
-    const template2Preview = aggregation.pmls.flatMap((pml) => pml.ppls.map((ppl) => ({ pml: pml.namaPml, ppl: ppl.namaPpl, jumlahSubSls: ppl.subsls.length, target: ppl.assignedTarget, capaian: ppl.totalCapaian, percentage: ppl.percentage, targetMissing: ppl.targetMissing, targetZero: ppl.targetZero, missingLink: ppl.missingLink }))).slice(0, 100);
+    const template2Preview = aggregation.ppls.map((ppl) => {
+      const progress = ujiPetik.byPpl.get(ppl.pplKey);
+      return { pml: ppl.namaPml, ppl: ppl.namaPpl, jumlahSubSls: ppl.subsls.length, target: ppl.assignedTarget, targetUsaha: progress?.targetUsaha ?? null, targetKeluarga: progress?.targetKeluarga ?? null, usahaKeluargaDitemukan: progress?.usahaKeluargaDitemukan ?? null, usahaKeluargaTidakDitemukan: progress?.usahaKeluargaTidakDitemukan ?? null, capaian: ppl.totalCapaian, percentage: ppl.percentage, targetMissing: ppl.targetMissing, targetZero: ppl.targetZero, missingLink: ppl.missingLink };
+    }).slice(0, 100);
     return success({
+      configuredSource,
       latestImport: { id: latest.id, snapshotId: latest.snapshotId, importedAt: latest.importedAt, period: latest.period, source: latest.dataSource },
-      stats: { pml: aggregation.pmls.length, ppl: aggregation.pmls.reduce((total, pml) => total + pml.ppls.length, 0), subsls: aggregation.subsls.length, target: aggregation.totalTarget, capaian: aggregation.totalCapaian, percentage: aggregation.percentage, anomalies: latest.anomalies.length },
+      progressSource: { filename: path.basename(progressSource.filePath), sourceHash: progressSource.sourceHash, updatedLabel: progressSource.updatedLabel, subsls: progressSource.bySubSls.size, matchedPpl: ujiPetik.byPpl.size, anomalies: ujiPetik.anomalies.length },
+      stats: { pml: aggregation.pmls.length, ppl: aggregation.ppls.length, subsls: aggregation.subsls.length, target: aggregation.totalTarget, capaian: aggregation.totalCapaian, percentage: aggregation.percentage, anomalies: anomalySummary.total },
+      quality: anomalySummary,
       rawPreview: rows.slice(0, 100).map((row) => ({ sourceRowNumber: row.sourceRowNumber, ...row.raw })),
-      template1Preview, template2Preview, anomalies: latest.anomalies.slice(0, 100), reports: latest.reports,
+      template1Preview, template2Preview, anomalies: sourceAnomalies.slice(0, 100), reports: latest.reports,
     });
   });
 

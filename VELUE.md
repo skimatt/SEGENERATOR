@@ -35,7 +35,8 @@ SPREADSHEET_ID=1zpMTFkKYVDdo8dyFy_ZJRGXFXFuVvMZSsPCzhD_0jfg
 Gunakan nama sheet berikut sebagai sumber data utama:
 
 ```text
-SOURCE_SHEET_NAME=DATA_MENTAH
+SOURCE_SHEET_NAME=DATA_MENTAH2
+ALTERNATIVE_SOURCE_SHEET_NAME=DATA_MENTAH
 ```
 
 Jika nama sheet aktual masih berbeda, agent wajib membuat konfigurasi yang dapat diubah tanpa mengubah kode inti.
@@ -54,11 +55,13 @@ Kode SubSLS
 Nama SLS
 Nama PPL
 Email PPL
+ID PPL
 Nama PML
 Email PML
 Status PPL Sobat
 Jenis Mitra
-Capaian
+Capaian PPL
+Capaian PML
 Target Prelist Awal
 Link Assignment PPL
 ```
@@ -71,14 +74,18 @@ Kode SubSLS         -> kodeSubSls
 Nama SLS            -> namaSls
 Nama PPL            -> namaPpl
 Email PPL           -> emailPpl
+ID PPL              -> idPpl (raw/audit, identitas sekunder)
 Nama PML            -> namaPml
 Email PML           -> emailPml
 Status PPL Sobat    -> statusPplSobat
 Jenis Mitra         -> jenisMitra
-Capaian              -> capaian
+Capaian PPL          -> capaian
+Capaian PML          -> capaianPml (raw/audit, tidak dijumlahkan ke capaian PPL)
 Target Prelist Awal -> targetPrelistAwal
 Link Assignment PPL -> linkAssignmentPpl
 ```
+
+`Email PPL` tetap menjadi identitas utama. `ID PPL` tidak boleh menggantikan email tanpa perubahan aturan bisnis tertulis. `Capaian PML` dipertahankan pada raw snapshot untuk audit dan tidak masuk agregasi laporan sampai definisi bisnis resminya disetujui.
 
 ---
 
@@ -533,7 +540,8 @@ APP_TIMEZONE=Asia/Jakarta
 DATABASE_URL=
 
 GOOGLE_SPREADSHEET_ID=1zpMTFkKYVDdo8dyFy_ZJRGXFXFuVvMZSsPCzhD_0jfg
-GOOGLE_SHEET_NAME=DATA_MENTAH
+# Sumber aktif. Alternatif rollback: DATA_MENTAH
+GOOGLE_SHEET_NAME=DATA_MENTAH2
 GOOGLE_SERVICE_ACCOUNT_EMAIL=
 GOOGLE_PRIVATE_KEY=
 
@@ -655,3 +663,57 @@ STRICT_MODE_DEFAULT=true
 AUDIT_REQUIRED=true
 MANUAL_DATA_PRESERVATION_REQUIRED=true
 ```
+
+---
+
+## 25. Sumber Progres Uji Petik Lokal
+
+Workbook progres FASIH disimpan lokal dan dipasang read-only ke container API:
+
+```text
+PROGRESS_WORKBOOK_PATH=./data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx
+```
+
+Tidak perlu menyalin seluruh workbook ke Google Spreadsheet. `DATA_MENTAH2` menjadi sumber aktif identitas dan assignment PPL; `DATA_MENTAH` tetap tersedia sebagai alternatif rollback, sedangkan workbook progres menjadi sumber metrik berdasarkan `Kode SubSLS`.
+
+Sheet yang dibaca:
+
+```text
+PROGRES PENDATAAN
+USAHA PERUSAHAAN
+USAHA KELUARGA
+```
+
+Mapping yang disetujui:
+
+```text
+Target U&K                  <- PROGRES PENDATAAN / Jumlah Prelist Usaha & Keluarga
+Target Usaha                <- USAHA PERUSAHAAN / Jumlah Prelist Usaha
+Target Keluarga             <- Target U&K - Target Usaha per SubSLS
+Usaha Keluarga Ditemukan    <- USAHA KELUARGA / Ditemukan
+Usaha Keluarga Tak Ditemukan<- USAHA KELUARGA / Tidak Ditemukan
+```
+
+Kolom berikut belum memiliki definisi sumber yang cukup eksplisit dan tetap manual:
+
+```text
+UMKM Ditemukan
+UMKM Tak Ditemukan
+Keluarga Ditemukan
+Keluarga Tak Ditemukan
+Hasil Uji Petik
+Pemeriksa
+Tanggal
+Dokumentasi
+```
+
+Aturan join:
+
+```text
+workbook progres.Kode SubSLS
+→ sheet assignment aktif.kodeSubSls
+→ sheet assignment aktif.emailPpl
+→ agregasi per pplKey
+```
+
+Jika satu SubSLS memiliki beberapa PPL, metrik progres tidak boleh diberikan penuh kepada semua PPL karena akan menggandakan angka. Baris tersebut harus dikeluarkan dari agregasi Uji Petik dan dicatat sebagai `UJI_PETIK_MULTI_PPL_UNALLOCATED` sampai assignment resmi ditentukan.

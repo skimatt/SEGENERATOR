@@ -87,8 +87,9 @@ function buildPml(pmlKey: string, rows: CanonicalRow[], allRows: CanonicalRow[])
 export function aggregateRows(rows: CanonicalRow[]): AggregationResult {
   const uniqueRows = latestUniqueAssignments(rows);
   const subsls = [...groupBy(uniqueRows, (row) => row.subslsKey).values()].map(buildSubSls).sort((a, b) => a.kodeSubSls.localeCompare(b.kodeSubSls));
+  const ppls = [...groupBy(uniqueRows, (row) => row.pplKey).entries()].map(([key, group]) => buildPpl(key, group, uniqueRows)).sort((a, b) => (a.namaPpl ?? a.pplKey).localeCompare(b.namaPpl ?? b.pplKey));
   const pmls = [...groupBy(uniqueRows, (row) => row.pmlKey).entries()].map(([key, group]) => buildPml(key, group, uniqueRows)).sort((a, b) => (a.namaPml ?? a.pmlKey).localeCompare(b.namaPml ?? b.pmlKey));
   const totalTarget = subsls.reduce((total, item) => total + (item.target ?? 0), 0);
   const totalCapaian = uniqueRows.reduce((total, row) => total + row.capaian, 0);
-  return { pmls, subsls, uniqueRows, totalTarget, totalCapaian, percentage: calculatePercentage(totalCapaian, totalTarget) };
+  return { pmls, ppls, subsls, uniqueRows, totalTarget, totalCapaian, percentage: calculatePercentage(totalCapaian, totalTarget) };
 }

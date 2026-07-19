@@ -14,4 +14,16 @@ describe('header resolver', () => {
     const [row] = rowsToRawRecords([headers, ['1', '001', 'SLS', 'PPL', 'ppl@example.com', 'PML', 'pml@example.com', 'Aktif', 'Mitra', '2', '3', '-']]);
     expect(row?.targetPrelistAwal).toBe('3');
   });
+
+  it('membaca DATA_MENTAH2 dan mempertahankan field tambahan untuk audit', () => {
+    const headers = ['No', 'Kode SubSLS', 'Nama SLS', 'Nama PPL', 'Email PPL', 'ID PPL', 'Nama PML', 'Email PML', 'Status PPL Sobat', 'Jenis Mitra', 'Capaian PPL', 'Capaian PML', 'Target (Prelist Awal)', 'Link Assignment PPL'];
+    const [row] = rowsToRawRecords([headers, ['1', '001', 'SLS', 'PPL', 'ppl@example.com', 'ppl-id-1', 'PML', 'pml@example.com', 'Aktif', 'Mitra', '2', '7', '3', '-']]);
+    expect(row).toMatchObject({
+      kodeSubSls: '001',
+      capaian: '2',
+      idPpl: 'ppl-id-1',
+      capaianPml: '7',
+      targetPrelistAwal: '3',
+    });
+  });
 });

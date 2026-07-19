@@ -42,7 +42,7 @@ export class GoogleSheetsReader {
       };
     } catch (error) {
       if (error instanceof GoogleSheetsError) throw error;
-      throw new GoogleSheetsError('Gagal membaca DATA_MENTAH dari Google Sheets. Periksa akses service account, spreadsheet ID, dan nama sheet.', error instanceof Error ? error.message : error);
+      throw new GoogleSheetsError(`Gagal membaca ${this.config.GOOGLE_SHEET_NAME} dari Google Sheets. Periksa akses service account, spreadsheet ID, dan nama sheet.`, error instanceof Error ? error.message : error);
     }
   }
 }

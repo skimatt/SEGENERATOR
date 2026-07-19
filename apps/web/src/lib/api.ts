@@ -3,8 +3,11 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 type ApiEnvelope<T> = { success: boolean; data: T | null; error: { code: string; message: string; details?: unknown } | null };
 
 export type DashboardData = {
+  configuredSource: { spreadsheetId: string; sheetName: string };
   latestImport: { id: string; snapshotId: string; importedAt: string; period: string; source: { spreadsheetId: string; sheetName: string } } | null;
+  progressSource?: { filename: string; sourceHash: string; updatedLabel: string | null; subsls: number; matchedPpl: number; anomalies: number };
   stats: { pml: number; ppl: number; subsls: number; target: number; capaian: number; percentage: number | null; anomalies: number } | null;
+  quality?: { total: number; blocking: number; errors: number; warnings: number };
   rawPreview: Record<string, unknown>[];
   template1Preview: Array<Record<string, unknown>>;
   template2Preview: Array<Record<string, unknown>>;

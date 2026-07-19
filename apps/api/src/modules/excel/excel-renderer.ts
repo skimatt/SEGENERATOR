@@ -1,8 +1,8 @@
 import ExcelJS from 'exceljs';
-import type { Anomaly, CanonicalRow, PipelineResult, PplAggregate, SubSlsAggregate } from '../../shared/types/domain.js';
+import type { Anomaly, CanonicalRow, PipelineResult, PplAggregate, SubSlsAggregate, UjiPetikPplMetrics } from '../../shared/types/domain.js';
 import { TemplateError } from '../../shared/errors/app-error.js';
 import { buildCellRef, buildRange } from '../../shared/utils/excel-ref.js';
-import { manualTemplate2Fields, template1Mapping, template2Mapping } from '../../config/template-mapping.js';
+import { manualTemplate2Fields, sourceBackedManualFields, template1Mapping, template2Mapping } from '../../config/template-mapping.js';
 import type { ManualValues } from './manual-preservation.js';
 
 type CellStyleSnapshot = {
@@ -104,8 +104,8 @@ function styleGrandTotal(sheet: ExcelJS.Worksheet, rowNumber: number): void {
 }
 
 function styleTemplate2DataRow(sheet: ExcelJS.Worksheet, rowNumber: number): void {
-  const automaticColumns = new Set(['A', 'B', 'C', 'D', 'I', 'L', 'O', 'S', 'T', 'V']);
-  const manualColumns = new Set(['E', 'F', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'R', 'U', 'W']);
+  const automaticColumns = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'I', 'J', 'K', 'L', 'O', 'S', 'T', 'V']);
+  const manualColumns = new Set(['G', 'H', 'M', 'N', 'P', 'Q', 'R', 'U', 'W']);
   for (const column of automaticColumns) {
     const cell = sheet.getCell(`${column}${rowNumber}`);
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2F0D9' } };
@@ -114,6 +114,23 @@ function styleTemplate2DataRow(sheet: ExcelJS.Worksheet, rowNumber: number): voi
     const cell = sheet.getCell(`${column}${rowNumber}`);
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
   }
+}
+
+function hasManualValue(value: ExcelJS.CellValue | undefined): boolean {
+  if (value === null || value === undefined) return false;
+  return typeof value !== 'string' || value.trim() !== '';
+}
+
+function sameScalarValue(left: ExcelJS.CellValue | undefined, right: ExcelJS.CellValue | undefined): boolean {
+  if (left === null || left === undefined || right === null || right === undefined) return false;
+  if ((typeof left === 'string' || typeof left === 'number' || typeof left === 'boolean') && (typeof right === 'string' || typeof right === 'number' || typeof right === 'boolean')) {
+    return String(left).trim() === String(right).trim();
+  }
+  return false;
+}
+
+function setSemanticFill(cell: ExcelJS.Cell, automatic: boolean): void {
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: automatic ? 'FFE2F0D9' : 'FFFFF2CC' } };
 }
 
 function validIdentitiesFirst<T>(items: T[], identity: (item: T) => string | null): T[] {
@@ -233,7 +250,7 @@ function renderTemplate1(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, per
   if (sheet.rowCount > totalRow) sheet.spliceRows(totalRow + 1, sheet.rowCount - totalRow);
 }
 
-function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, manual: Map<string, ManualValues>, permissive: boolean): void {
+function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, manual: Map<string, ManualValues>, permissive: boolean, ujiPetikByPpl: Map<string, UjiPetikPplMetrics>): void {
   const detailStyle = snapshotRowStyle(sheet, 4, 1, 23);
   clearRowsFrom(sheet, template2Mapping.dataStartRow);
   sheet.getCell('S2').value = 'REALISASI OTOMATIS';
@@ -241,21 +258,26 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
   sheet.getCell('W1').value = 'Hijau = data otomatis | Kuning = input manual';
   sheet.getCell('W1').font = { name: 'Arial', size: 8, bold: true, color: { argb: 'FF475569' } };
   sheet.getCell('W1').alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-  sheet.getCell('E3').note = 'Target Usaha tidak tersedia pada DATA_MENTAH. Isi manual akan dipertahankan saat generate ulang.';
-  sheet.getCell('F3').note = 'Target Keluarga tidak tersedia pada DATA_MENTAH. Isi manual akan dipertahankan saat generate ulang.';
+  sheet.getCell('E3').note = 'Target Usaha bersumber dari sheet USAHA PERUSAHAAN dan dijumlahkan berdasarkan SubSLS milik PPL.';
+  sheet.getCell('F3').note = 'Target Keluarga dihitung sebagai Target U&K dikurangi Target Usaha per SubSLS.';
+  sheet.getCell('G3').note = 'Definisi UMKM ditemukan belum dapat dipetakan secara pasti dari workbook progres; tetap input manual.';
+  sheet.getCell('J3').note = 'Usaha Keluarga ditemukan bersumber dari sheet USAHA KELUARGA.';
+  sheet.getCell('K3').note = 'Usaha Keluarga tak ditemukan bersumber dari sheet USAHA KELUARGA.';
+  sheet.getCell('M3').note = 'Keluarga ditemukan/tak ditemukan tidak tersedia eksplisit pada workbook progres; tetap input manual.';
   sheet.getCell('U3').note = 'Kolom realisasi kategori kedua bersifat manual dan dipertahankan saat generate ulang.';
   const hiddenHeaders = Object.entries(template2Mapping.columns).filter(([, column]) => column.length > 1 || ['X', 'Y', 'Z'].includes(column));
   for (const [field, column] of hiddenHeaders) set(sheet, column, template2Mapping.headerRow, field);
 
   let rowNumber = template2Mapping.dataStartRow;
   let sequence = 1;
-  for (const pml of validIdentitiesFirst(pipeline.aggregation.pmls, (item) => item.namaPml)) for (const ppl of validIdentitiesFirst(pml.ppls, (item) => item.namaPpl)) {
+  for (const ppl of validIdentitiesFirst(pipeline.aggregation.ppls, (item) => item.namaPpl)) {
     applyRowStyle(sheet, rowNumber, detailStyle);
     const stableKey = `${pipeline.period}::${ppl.pplKey}`;
+    const progressMetrics = ujiPetikByPpl.get(ppl.pplKey);
     const autoValues: Record<string, ExcelJS.CellValue> = {
       no: sequence,
       namaPpl: ppl.namaPpl,
-      namaPml: pml.namaPml,
+      namaPml: ppl.namaPml,
       target: ppl.assignedTarget,
       umkmTotal: { formula: `IF(COUNTA(G${rowNumber}:H${rowNumber})=0,"",SUM(G${rowNumber}:H${rowNumber}))` },
       usahaKeluargaTotal: { formula: `IF(COUNTA(J${rowNumber}:K${rowNumber})=0,"",SUM(J${rowNumber}:K${rowNumber}))` },
@@ -265,7 +287,7 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
       percentageKategoriLain: { formula: `IFERROR(U${rowNumber}/D${rowNumber}*100,0)` },
       stableKey,
       emailPpl: ppl.emailPpl,
-      emailPml: pml.emailPml,
+      emailPml: ppl.emailPml,
       jumlahSubSls: ppl.subsls.length,
       targetMissing: ppl.targetMissing,
       targetZero: ppl.targetZero,
@@ -278,16 +300,38 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
       multiPml: ppl.multiPml,
       multiPpl: ppl.multiPpl,
       detection: detectionFor(ppl, pipeline.anomalies),
+      progressSourceHash: progressMetrics?.sourceHash ?? null,
+      progressMatchedSubSls: progressMetrics?.matchedSubSls ?? 0,
     };
     for (const [field, value] of Object.entries(autoValues)) set(sheet, mapped(template2Mapping.columns, field), rowNumber, value);
     const prior = manual.get(stableKey);
-    for (const field of manualTemplate2Fields) set(sheet, mapped(template2Mapping.columns, field), rowNumber, prior?.[field] ?? null);
+    const sourceBackedValues: Partial<Record<(typeof manualTemplate2Fields)[number], ExcelJS.CellValue>> = progressMetrics ? {
+      targetUsaha: progressMetrics.targetUsaha,
+      targetKeluarga: progressMetrics.targetKeluarga,
+      usahaKeluargaDitemukan: progressMetrics.usahaKeluargaDitemukan,
+      usahaKeluargaTidakDitemukan: progressMetrics.usahaKeluargaTidakDitemukan,
+    } : {};
+    for (const [field, auditField] of Object.entries(sourceBackedManualFields)) {
+      set(sheet, mapped(template2Mapping.columns, auditField), rowNumber, sourceBackedValues[field as keyof typeof sourceBackedManualFields] ?? null);
+    }
+    for (const field of manualTemplate2Fields) {
+      const preserved = prior?.[field];
+      const sourceValue = sourceBackedValues[field];
+      const usePreserved = hasManualValue(preserved) && !sameScalarValue(preserved, sourceValue);
+      set(sheet, mapped(template2Mapping.columns, field), rowNumber, usePreserved ? preserved ?? null : sourceValue ?? null);
+    }
     sheet.getCell(`A${rowNumber}`).numFmt = '0';
     for (const column of ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'S', 'U']) sheet.getCell(`${column}${rowNumber}`).numFmt = '0';
     for (const column of ['T', 'V']) sheet.getCell(`${column}${rowNumber}`).numFmt = '0.00';
     sheet.getCell(`P${rowNumber}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Sesuai,Tidak Sesuai,Perlu Tindak Lanjut"'] };
     sheet.getCell(`R${rowNumber}`).numFmt = 'dd/mm/yyyy';
     styleTemplate2DataRow(sheet, rowNumber);
+    for (const field of ['targetUsaha', 'targetKeluarga', 'usahaKeluargaDitemukan', 'usahaKeluargaTidakDitemukan'] as const) {
+      const preserved = prior?.[field];
+      const sourceValue = sourceBackedValues[field];
+      const usePreserved = hasManualValue(preserved) && !sameScalarValue(preserved, sourceValue);
+      setSemanticFill(sheet.getCell(`${mapped(template2Mapping.columns, field)}${rowNumber}`), !usePreserved && sourceValue !== undefined);
+    }
     rowNumber += 1;
     sequence += 1;
   }
@@ -302,7 +346,7 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
     sheet.getCell('A1').value = 'SE2026 - Sensus Ekonomi — PERLU VERIFIKASI';
     sheet.getCell('A1').font = { ...sheet.getCell('A1').font, color: { argb: 'FFC00000' }, bold: true };
   }
-  for (let column = 24; column <= 43; column += 1) {
+  for (let column = 24; column <= 49; column += 1) {
     sheet.getColumn(column).hidden = true;
     sheet.getColumn(column).width = column === 24 ? 34 : 16;
   }
@@ -322,7 +366,7 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
   if (sheet.rowCount > summaryRow) sheet.spliceRows(summaryRow + 1, sheet.rowCount - summaryRow);
 }
 
-export async function renderWorkbook(templatePath: string, outputPath: string, pipeline: PipelineResult, manual: Map<string, ManualValues>, permissive: boolean): Promise<void> {
+export async function renderWorkbook(templatePath: string, outputPath: string, pipeline: PipelineResult, manual: Map<string, ManualValues>, permissive: boolean, ujiPetikByPpl: Map<string, UjiPetikPplMetrics> = new Map()): Promise<void> {
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.readFile(templatePath);
@@ -334,7 +378,7 @@ export async function renderWorkbook(templatePath: string, outputPath: string, p
   if (!sheet1 || !sheet2) throw new TemplateError('Template wajib memiliki sheet "LK Termin 1" dan "Uji Petik".');
   for (const sheet of [...workbook.worksheets]) if (![template1Mapping.sheetName, template2Mapping.sheetName].includes(sheet.name)) workbook.removeWorksheet(sheet.id);
   renderTemplate1(sheet1, pipeline, permissive);
-  renderTemplate2(sheet2, pipeline, manual, permissive);
+  renderTemplate2(sheet2, pipeline, manual, permissive, ujiPetikByPpl);
   workbook.calcProperties.fullCalcOnLoad = true;
   await workbook.xlsx.writeFile(outputPath);
 }

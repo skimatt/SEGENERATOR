@@ -1,7 +1,7 @@
 import { ValidationError } from '../../shared/errors/app-error.js';
 import { scalarToString } from '../../shared/utils/scalar.js';
 
-const aliases: Record<string, string[]> = {
+const requiredAliases: Record<string, string[]> = {
   no: ['no', 'nomor'],
   kodeSubSls: ['kode subsls', 'kode_subsls', 'kodesubsls'],
   namaSls: ['nama sls', 'nama_sls', 'namasls'],
@@ -11,9 +11,14 @@ const aliases: Record<string, string[]> = {
   emailPml: ['email pml', 'email_pml', 'emailpml'],
   statusPplSobat: ['status ppl sobat', 'status_ppl_sobat'],
   jenisMitra: ['jenis mitra', 'jenis_mitra'],
-  capaian: ['capaian'],
+  capaian: ['capaian', 'capaian ppl'],
   targetPrelistAwal: ['target prelist awal', 'target (prelist awal)', 'target_prelist_awal'],
   linkAssignmentPpl: ['link assignment ppl', 'link_assignment_ppl'],
+};
+
+const optionalAliases: Record<string, string[]> = {
+  idPpl: ['id ppl', 'id_ppl', 'idppl'],
+  capaianPml: ['capaian pml', 'capaian_pml', 'capaianpml'],
 };
 
 function normalizeHeader(value: unknown): string {
@@ -24,13 +29,17 @@ export function resolveHeaders(headers: unknown[]): Record<string, number> {
   const normalized = headers.map(normalizeHeader);
   const result: Record<string, number> = {};
   const missing: string[] = [];
-  for (const [canonical, accepted] of Object.entries(aliases)) {
+  for (const [canonical, accepted] of Object.entries(requiredAliases)) {
     const index = normalized.findIndex((header) => accepted.includes(header));
     if (index < 0) missing.push(canonical);
     else result[canonical] = index;
   }
   if (missing.length > 0) {
     throw new ValidationError('Struktur header Google Sheets tidak lengkap.', { missing, received: headers });
+  }
+  for (const [canonical, accepted] of Object.entries(optionalAliases)) {
+    const index = normalized.findIndex((header) => accepted.includes(header));
+    if (index >= 0) result[canonical] = index;
   }
   return result;
 }

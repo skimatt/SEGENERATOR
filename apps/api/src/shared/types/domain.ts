@@ -96,6 +96,7 @@ export type PmlAggregate = {
 
 export type AggregationResult = {
   pmls: PmlAggregate[];
+  ppls: PplAggregate[];
   subsls: SubSlsAggregate[];
   uniqueRows: CanonicalRow[];
   totalTarget: number;
@@ -109,4 +110,37 @@ export type PipelineResult = {
   rows: CanonicalRow[];
   aggregation: AggregationResult;
   anomalies: Anomaly[];
+};
+
+export type ProgressSubSlsMetrics = {
+  kodeSubSls: string;
+  targetCombined: number;
+  targetUsaha: number;
+  usahaKeluargaDitemukan: number;
+  usahaKeluargaTidakDitemukan: number;
+};
+
+export type ProgressWorkbookSource = {
+  filePath: string;
+  sourceHash: string;
+  updatedLabel: string | null;
+  bySubSls: Map<string, ProgressSubSlsMetrics>;
+};
+
+export type UjiPetikPplMetrics = {
+  pplKey: string;
+  targetCombined: number;
+  targetUsaha: number;
+  targetKeluarga: number;
+  usahaKeluargaDitemukan: number;
+  usahaKeluargaTidakDitemukan: number;
+  matchedSubSls: number;
+  sourceHash: string;
+};
+
+export type UjiPetikAggregation = {
+  byPpl: Map<string, UjiPetikPplMetrics>;
+  anomalies: Anomaly[];
+  sourceHash: string;
+  updatedLabel: string | null;
 };

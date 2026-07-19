@@ -30,4 +30,17 @@ describe('pipeline bisnis', () => {
     expect(result.aggregation.percentage).toBeNull();
     expect(result.aggregation.subsls[0]?.status).toBe('CAPAIAN_WITHOUT_TARGET');
   });
+
+  it('menyediakan satu agregat Uji Petik per pplKey meskipun PPL berada di beberapa PML', () => {
+    const first = baseRawRows[0];
+    if (!first) throw new Error('Fixture kosong.');
+    const result = processRawRows([
+      first,
+      { ...first, no: '2', kodeSubSls: '001002', namaPml: 'PML Kedua', emailPml: 'pml-kedua@example.com', targetPrelistAwal: '5', capaian: '2' },
+    ], '2026_T1');
+    expect(result.aggregation.pmls).toHaveLength(2);
+    expect(result.aggregation.ppls).toHaveLength(1);
+    expect(result.aggregation.ppls[0]?.assignedTarget).toBe(15);
+    expect(result.aggregation.ppls[0]?.multiPml).toBe(1);
+  });
 });

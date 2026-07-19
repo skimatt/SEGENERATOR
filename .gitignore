@@ -18,5 +18,11 @@ umkm-479223-fddd8281bf40.json
 /LK PPK  TEMPLATES.xlsx
 /templates/LK_PPK.xlsx
 /Hello.txt
+/History.txt
 /apps/web/vite.config.js
 /apps/web/vite.config.d.ts
+
+# Export progres FASIH adalah sumber data lokal yang diperbarui berkala.
+/data/*.xlsx
+/data/*.json
+!/data/.gitkeep

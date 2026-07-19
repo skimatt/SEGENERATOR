@@ -83,6 +83,12 @@ export const template2Mapping: SheetMapping = {
     dataGanda: 'AO',
     tindakLanjut: 'AP',
     keteranganLapangan: 'AQ',
+    progressSourceHash: 'AR',
+    progressMatchedSubSls: 'AS',
+    progressTargetUsahaSource: 'AT',
+    progressTargetKeluargaSource: 'AU',
+    progressUsahaKeluargaDitemukanSource: 'AV',
+    progressUsahaKeluargaTidakDitemukanSource: 'AW',
   },
 };
 
@@ -106,3 +112,10 @@ export const manualTemplate2Fields = [
   'dokumentasi',
   'keteranganLapangan',
 ] as const;
+
+export const sourceBackedManualFields = {
+  targetUsaha: 'progressTargetUsahaSource',
+  targetKeluarga: 'progressTargetKeluargaSource',
+  usahaKeluargaDitemukan: 'progressUsahaKeluargaDitemukanSource',
+  usahaKeluargaTidakDitemukan: 'progressUsahaKeluargaTidakDitemukanSource',
+} as const satisfies Partial<Record<(typeof manualTemplate2Fields)[number], string>>;

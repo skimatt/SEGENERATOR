@@ -1,6 +1,6 @@
 # Sistem Generator Laporan LK PPK BPS Bireuen
 
-Aplikasi lokal tanpa login untuk mengimpor `DATA_MENTAH` dari Google Sheets, menjalankan pipeline data yang dapat diaudit, menampilkan dashboard, dan menghasilkan workbook Excel `LK Termin 1` serta `Uji Petik`.
+Aplikasi lokal tanpa login untuk mengimpor `DATA_MENTAH2` dari Google Sheets, menjalankan pipeline data yang dapat diaudit, menampilkan dashboard, dan menghasilkan workbook Excel `LK Termin 1` serta `Uji Petik`.
 
 Status implementasi, keputusan teknis, hasil verifikasi terakhir, dan target lanjutan untuk melengkapi data Uji Petik dicatat di [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md). Agent berikutnya wajib membaca `AGENTS.md`, `VELUE.md`, dan dokumen handoff tersebut sebelum mengubah kode.
 
@@ -9,7 +9,7 @@ Status implementasi, keputusan teknis, hasil verifikasi terakhir, dan target lan
 1. Salin `.env.example` menjadi `.env`.
 2. Simpan file service account di luar Git dan isi `GOOGLE_SERVICE_ACCOUNT_FILE`, atau gunakan `GOOGLE_SERVICE_ACCOUNT_EMAIL` serta `GOOGLE_PRIVATE_KEY`. Docker Compose proyek ini memasang `umkm-479223-fddd8281bf40.json` sebagai secret file read-only.
 3. Bagikan spreadsheet `1zpMTFkKYVDdo8dyFy_ZJRGXFXFuVvMZSsPCzhD_0jfg` kepada email service account sebagai Viewer.
-4. Pastikan sheet sumber bernama `DATA_MENTAH`.
+4. Pastikan sheet sumber aktif bernama `DATA_MENTAH2`. Untuk rollback, ubah `GOOGLE_SHEET_NAME` menjadi `DATA_MENTAH` tanpa mengubah kode.
 5. Jalankan:
 
 ```powershell
@@ -57,6 +57,27 @@ Target wilayah dihitung sekali per `periode::kodeSubSls`. Exact duplicate tidak 
 Generator menggunakan template resmi [templates/LK PPK  TEMPLATES.xlsx](templates/LK%20PPK%20%20TEMPLATES.xlsx). Renderer mempertahankan struktur dua sheet, style, merge, ukuran, area cetak, serta kolom manual Uji Petik melalui stable key.
 
 Kolom manual `Uji Petik` dibaca dari laporan terakhir dan dipetakan kembali dengan stable key `periode::pplKey`. File lama tidak dihapus atau ditimpa.
+
+## Sumber progres Uji Petik
+
+Simpan export FASIH berikut pada lokasi tetap:
+
+```text
+data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx
+```
+
+Tidak perlu mengunggah delapan sheet ke Google Spreadsheet. Saat dashboard atau generator laporan dijalankan, API membaca workbook tersebut secara read-only, mencocokkan `Kode SubSLS` dengan assignment pada sheet aktif (`DATA_MENTAH2` secara default), lalu mengagregasikan metrik per email PPL.
+
+Untuk memperbarui data, unduh export FASIH terbaru dan ganti file pada lokasi yang sama. Cache pembacaan otomatis dibatalkan jika waktu modifikasi atau ukuran file berubah.
+
+Field otomatis dari workbook progres:
+
+- Target Usaha;
+- Target Keluarga (`Target U&K - Target Usaha` per SubSLS);
+- Usaha Keluarga ditemukan;
+- Usaha Keluarga tak ditemukan.
+
+Field UMKM dan Keluarga tetap manual karena workbook belum menyediakan pasangan ditemukan/tak ditemukan dengan definisi yang cukup eksplisit. Nilai manual lama selalu dipertahankan dan memiliki prioritas saat generate ulang.
 
 ## Pemeriksaan kualitas
 

@@ -9,8 +9,14 @@ import { aggregateRows } from '../aggregation/aggregation-engine.js';
 import { detectAnomalies } from '../anomalies/anomaly-detector.js';
 import { readManualEntries } from '../excel/manual-preservation.js';
 import { renderWorkbook } from '../excel/excel-renderer.js';
+import { ProgressWorkbookReader } from '../uji-petik/progress-workbook-reader.js';
+import { aggregateUjiPetikByPpl } from '../uji-petik/uji-petik-aggregator.js';
 
-const strictBlockingCodes = new Set(['SUBSLS_CODE_MISSING', 'TARGET_CONFLICT', 'NUMBER_PARSE_ERROR', 'IDENTITY_UNRESOLVED']);
+const strictBlockingCodes = new Set(['SUBSLS_CODE_MISSING', 'TARGET_CONFLICT', 'NUMBER_PARSE_ERROR', 'IDENTITY_UNRESOLVED', 'UJI_PETIK_TARGET_MISMATCH']);
+
+export function isStrictBlockingCode(code: string): boolean {
+  return strictBlockingCodes.has(code);
+}
 
 function json(value: unknown): Prisma.InputJsonValue { return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue; }
 
@@ -20,7 +26,11 @@ function filename(period: string, now = new Date()): string {
 }
 
 export class ReportService {
-  constructor(private readonly prisma: PrismaClient, private readonly config: AppConfig) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly config: AppConfig,
+    private readonly progressWorkbookReader = new ProgressWorkbookReader(),
+  ) {}
 
   async generate(importId: string, mode: ProcessingMode) {
     const imported = await this.prisma.import.findUnique({ where: { id: importId }, include: { normalizedRows: { orderBy: { sourceRowNumber: 'asc' } }, rawRows: { orderBy: { sourceRowNumber: 'asc' } }, anomalies: true } });
@@ -30,7 +40,10 @@ export class ReportService {
     const persistedAnomalies = imported.anomalies as unknown as Anomaly[];
     const anomalyKeys = new Set(currentAnomalies.map((item) => `${item.code}:${item.entityKey}:${item.sourceRows.join(',')}`));
     const anomalies = [...currentAnomalies, ...persistedAnomalies.filter((item) => !anomalyKeys.has(`${item.code}:${item.entityKey}:${item.sourceRows.join(',')}`))];
-    const blocking = anomalies.filter((item) => strictBlockingCodes.has(item.code));
+    const progressSource = await this.progressWorkbookReader.read(this.config.PROGRESS_WORKBOOK_PATH);
+    const ujiPetik = aggregateUjiPetikByPpl(rows, progressSource);
+    anomalies.push(...ujiPetik.anomalies);
+    const blocking = anomalies.filter((item) => isStrictBlockingCode(item.code));
     if (mode === 'strict' && blocking.length > 0) throw new DataConflictError('Laporan strict tidak dibuat karena terdapat anomali pemblokir.', { anomalies: blocking });
     const pipeline: PipelineResult = { period: imported.period, rawRows: imported.rawRows.map((item) => item.raw as Record<string, unknown>), rows, aggregation: aggregateRows(rows), anomalies };
     const previous = await this.prisma.report.findFirst({ where: { status: 'completed' }, orderBy: { generatedAt: 'desc' } });
@@ -40,11 +53,11 @@ export class ReportService {
     const outputPath = path.resolve(this.config.REPORT_OUTPUT_DIR, reportFilename);
     const report = await this.prisma.report.create({ data: { importId, filename: reportFilename, filePath: outputPath, warningCount: anomalies.filter((item) => item.severity === 'warning').length, errorCount: anomalies.filter((item) => item.severity === 'error' || item.severity === 'critical').length, status: 'generating' } });
     try {
-      await renderWorkbook(path.resolve(this.config.REPORT_TEMPLATE_PATH), outputPath, pipeline, manual, mode === 'permissive');
+      await renderWorkbook(path.resolve(this.config.REPORT_TEMPLATE_PATH), outputPath, pipeline, manual, mode === 'permissive', ujiPetik.byPpl);
       const fileHash = sha256(await readFile(outputPath));
       const completed = await this.prisma.report.update({ where: { id: report.id }, data: { status: 'completed', fileHash } });
       if (manual.size > 0) await this.prisma.reportManualEntry.createMany({ data: [...manual.entries()].map(([stableKey, values]) => ({ reportId: report.id, stableKey, values: json(values) })) });
-      await this.prisma.auditLog.create({ data: { level: 'info', module: 'reports', action: 'generate', message: 'Laporan Excel berhasil dibuat.', metadata: json({ reportId: report.id, importId, mode, filename: reportFilename, fileHash, preservedManualEntries: manual.size }) } });
+      await this.prisma.auditLog.create({ data: { level: 'info', module: 'reports', action: 'generate', message: 'Laporan Excel berhasil dibuat.', metadata: json({ reportId: report.id, importId, mode, filename: reportFilename, fileHash, preservedManualEntries: manual.size, progressWorkbookHash: ujiPetik.sourceHash, progressWorkbookUpdatedLabel: ujiPetik.updatedLabel, ujiPetikMatchedPpl: ujiPetik.byPpl.size, ujiPetikAnomalyCount: ujiPetik.anomalies.length }) } });
       return completed;
     } catch (error) {
       await this.prisma.report.update({ where: { id: report.id }, data: { status: 'failed' } });

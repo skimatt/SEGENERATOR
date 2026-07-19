@@ -29,6 +29,7 @@ services:
     volumes:
       - ./templates:/app/templates
       - ./storage:/app/storage
+      - ./data:/app/data:ro
       - ./umkm-479223-fddd8281bf40.json:/run/secrets/google-service-account.json:ro
 
   web:

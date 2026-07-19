@@ -1,7 +1,7 @@
 import { access } from 'node:fs/promises';
 import ExcelJS from 'exceljs';
 import { buildCellRef } from '../../shared/utils/excel-ref.js';
-import { manualTemplate2Fields, template2Mapping } from '../../config/template-mapping.js';
+import { manualTemplate2Fields, sourceBackedManualFields, template2Mapping } from '../../config/template-mapping.js';
 
 export type ManualValues = Record<(typeof manualTemplate2Fields)[number], ExcelJS.CellValue>;
 
@@ -13,6 +13,25 @@ function column(field: string): string {
 
 function stableKeyValue(value: ExcelJS.CellValue): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+}
+
+function comparableValue(value: ExcelJS.CellValue): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') return String(value).trim();
+  if (value instanceof Date) return value.toISOString();
+  if ('result' in value) return comparableValue(value.result);
+  if ('text' in value) return value.text.trim();
+  return '';
+}
+
+function isAutomaticSourceValue(sheet: ExcelJS.Worksheet, field: keyof typeof sourceBackedManualFields, rowNumber: number): boolean {
+  const visibleCell = sheet.getCell(buildCellRef(column(field), rowNumber));
+  const auditField = sourceBackedManualFields[field];
+  const auditValue = sheet.getCell(buildCellRef(column(auditField), rowNumber)).value;
+  if (auditValue !== null && auditValue !== undefined && comparableValue(auditValue) !== '') {
+    return comparableValue(visibleCell.value) === comparableValue(auditValue);
+  }
+  return visibleCell.fill.type === 'pattern' && visibleCell.fill.fgColor?.argb === 'FFE2F0D9';
 }
 
 export async function readManualEntries(filePath: string | null): Promise<Map<string, ManualValues>> {
@@ -27,7 +46,10 @@ export async function readManualEntries(filePath: string | null): Promise<Map<st
     const stableKey = stableKeyValue(sheet.getCell(buildCellRef(column('stableKey'), rowNumber)).value);
     if (!stableKey) continue;
     const values = {} as ManualValues;
-    for (const field of manualTemplate2Fields) values[field] = sheet.getCell(buildCellRef(column(field), rowNumber)).value;
+    for (const field of manualTemplate2Fields) {
+      if (field in sourceBackedManualFields && isAutomaticSourceValue(sheet, field as keyof typeof sourceBackedManualFields, rowNumber)) values[field] = null;
+      else values[field] = sheet.getCell(buildCellRef(column(field), rowNumber)).value;
+    }
     entries.set(stableKey, values);
   }
   if (entries.size === 0) {

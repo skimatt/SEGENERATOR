@@ -39,3 +39,9 @@ export class ReportGenerationError extends AppError {
     super('REPORT_GENERATION_ERROR', message, 500, details);
   }
 }
+
+export class ProgressWorkbookError extends AppError {
+  constructor(message: string, details: unknown = null) {
+    super('PROGRESS_WORKBOOK_ERROR', message, 422, details);
+  }
+}
