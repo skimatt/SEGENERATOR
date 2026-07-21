@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "lint": "eslint src tests --max-warnings=0",
     "pretest": "npm run template:create",
-    "test": "vitest run",
+    "test": "vitest run --exclude **/dist/**",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "template:create": "tsx scripts/create-template.ts",
     "prisma:generate": "prisma generate",

@@ -77,7 +77,7 @@ describe('uji petik aggregator', () => {
     expect(result.anomalies.some((item) => item.code === 'UJI_PETIK_MULTI_PPL_UNALLOCATED')).toBe(true);
   });
 
-  it('mendeteksi target sumber yang berbeda dengan DATA_MENTAH', () => {
+  it('mendeteksi perbedaan target tetapi tetap memakai workbook progres untuk Uji Petik', () => {
     const [row] = normalizeRows([baseRawRows[0] as Record<string, unknown>], '2026_T1');
     if (!row) throw new Error('Fixture canonical kosong.');
     const source: ProgressWorkbookSource = {
@@ -87,9 +87,8 @@ describe('uji petik aggregator', () => {
       bySubSls: new Map([['001001', { kodeSubSls: '001001', targetCombined: 11, targetUsaha: 6, usahaKeluargaDitemukan: 2, usahaKeluargaTidakDitemukan: 1 }]]),
     };
     const result = aggregateUjiPetikByPpl([row], source);
-    expect(result.byPpl.size).toBe(0);
+    expect(result.byPpl.get('ani@example.com')).toMatchObject({ targetCombined: 11, targetUsaha: 6, targetKeluarga: 5, matchedSubSls: 1 });
     expect(result.anomalies[0]?.code).toBe('UJI_PETIK_TARGET_MISMATCH');
-    expect(result.anomalies[0]?.severity).toBe('error');
+    expect(result.anomalies[0]?.severity).toBe('warning');
   });
 });
-

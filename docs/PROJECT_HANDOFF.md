@@ -11,7 +11,7 @@ Dokumen ini adalah jejak ringkas agar pengembangan dapat dilanjutkan tanpa mengu
 - Riwayat laporan ditempatkan pada panel samping berukuran tetap dengan scroll dan tombol unduh per file.
 - Import riil `DATA_MENTAH2` memproses 2.190 baris menjadi 2.185 SubSLS unik, 57 PML, 393 `pplKey`, target unik 198.770, dan capaian 109.884.
 - Lima SubSLS memiliki multi-assignment; empat baris assignment mempunyai ID PPL tetapi nama/email berisi `-`; identitas tersebut tidak boleh ditebak.
-- Ekspor strict saat ini diblokir oleh tepat 28 anomali `UJI_PETIK_TARGET_MISMATCH`: target SubSLS pada workbook progres berbeda dengan `DATA_MENTAH2`. Permissive tetap dapat membuat workbook dengan catatan verifikasi.
+- Terdapat 28 anomali `UJI_PETIK_TARGET_MISMATCH` antara target workbook progres dan `DATA_MENTAH2`. Mulai pembaruan 21 Juli 2026, perbedaan ini tetap dicatat sebagai warning audit, tetapi Uji Petik memakai target workbook progres agar kolom Target U&K, Target Usaha, dan Target Keluarga konsisten.
 - Kolom UMKM ditemukan/tak ditemukan, Keluarga ditemukan/tak ditemukan, nama pelaksana Uji Petik, dan tanggal pelaksanaan belum memiliki sumber resmi sehingga tetap manual dan dipertahankan saat regenerate.
 - Verifikasi terakhir: 40 test lulus, type-check lulus, lint lulus, build production lulus, Docker Compose aktif, dan QA visual dashboard lulus.
 
@@ -116,7 +116,7 @@ Nilai tersebut tidak boleh ditebak atau diturunkan dengan pembagian asumtif.
 
 ### Pembaruan 18 Juli 2026 — workbook progres lokal
 
-Sumber tambahan sudah dipilih: `data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx`. Workbook tidak diunggah ke Google Sheets; API membacanya read-only dan menggabungkannya dengan sheet assignment aktif melalui Kode SubSLS.
+Sumber tambahan aktif: `data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx`. Workbook tidak diunggah ke Google Sheets; API membacanya read-only dan menggabungkannya dengan sheet assignment aktif melalui Kode SubSLS.
 
 Mapping yang sudah diimplementasikan:
 
@@ -211,3 +211,34 @@ Jangan memasukkan service account JSON ke Git. Docker Compose mengharapkan crede
 - `npm audit --audit-level=high`: tidak ada high/critical; dua temuan moderate transitif tetap dicatat di atas.
 
 Panduan pemasangan, pemindahan data, backup/restore, operasi, dan troubleshooting tersedia di `docs/DOCKER_SETUP.md`.
+
+## Audit akurasi LK Termin 1 — 20 Juli 2026
+
+- layout resmi dipertahankan pada rentang `B2:O`: judul baris 2–3, header baris 5–7, dan data mulai `B8`;
+- nomor kelompok PPL pada kolom B berurutan `1–396`; jumlah ini lebih besar dari 394 PPL unik karena petugas yang tercatat pada lebih dari satu PML tetap dipisahkan agar riwayat assignment tidak hilang;
+- flag audit tersembunyi membedakan target unik regional (`Q`), baris detail capaian (`R`), target unik dalam masing-masing PML (`S`), PPL unik (`T`), kelompok PPL-PML (`U`), dan PML (`V`);
+- subtotal PML menghitung target unik di dalam PML, sedangkan total wilayah tetap menghitung satu target per `SUBSLS_KEY`;
+- formula target/capaian menggunakan `SUMIF` berbasis flag audit agar subtotal tidak ikut terhitung dan target kosong tidak menghasilkan `#VALUE!`;
+- persentase mengembalikan sel kosong bila target kosong atau nol, bukan menampilkan `0%` yang menyesatkan;
+- rekonsiliasi data aktif: 57 PML, 394 PPL unik, 396 kelompok PPL-PML, 2.185 SubSLS unik, 2.188 baris detail, target 198.770, dan capaian 119.099;
+- tiga baris formula di bagian paling bawah menampilkan Total PML `57`, Total PPL Unik `394`, dan Total Kelompok PPL-PML `396`; nilai terakhir wajib sama dengan nomor urut terakhir;
+- blok ringkasan memakai manual page break agar ketiga total selalu tercetak bersama dan tidak terpotong antarhalaman;
+- workbook QA: `LK_PPK_BIREUEN_2026_TERMIN_1_202607201455.xlsx`, report ID `cmrsxkads0001o807fpkmuqlu`, hash `ac23e86a88b4ef872c9335c993eeda539c937ffa2a584d3ad252d2d1c33340e3`;
+- Microsoft Excel berhasil membuka dan menghitung workbook tanpa repair; pemindaian 23 halaman `LK Termin 1` menemukan nol `#VALUE!`, `#REF!`, `#DIV/0!`, `#NAME?`, dan `#N/A`;
+- konfigurasi Vitest mengecualikan `dist/**` agar salinan test hasil build tidak dihitung ulang; 6 file sumber/22 test, TypeScript, lint, production build, dan rebuild container API: lulus.
+
+## Penyempurnaan Uji Petik — 21 Juli 2026
+
+- sumber progres aktif diganti ke `data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx`;
+- workbook berisi 2.185 kode SubSLS 16 digit yang unik dan konsisten pada delapan sheet; seluruh kode cocok dengan snapshot `DATA_MENTAH2` terbaru;
+- Target U&K, Target Usaha, dan Target Keluarga pada Uji Petik memakai satu basis workbook progres sehingga `Target U&K = Target Usaha + Target Keluarga` untuk seluruh 393 PPL yang dapat dialokasikan;
+- 28 `UJI_PETIK_TARGET_MISMATCH` tetap dicatat sebagai warning audit, tetapi tidak lagi membuang metrik progres atau memblokir strict mode karena target LK Termin 1 dan Uji Petik berasal dari konteks sumber berbeda;
+- tiga SubSLS multi-PPL tetap tidak dialokasikan dan menghasilkan `UJI_PETIK_MULTI_PPL_UNALLOCATED`; satu PPL yang hanya mempunyai assignment ambigu menampilkan target kosong, bukan fallback yang menyesatkan;
+- total metrik Uji Petik yang aman dialokasikan: Target U&K 198.870, Target Usaha 64.378, Target Keluarga 134.492, Usaha Keluarga Ditemukan 12.101, dan Usaha Keluarga Tak Ditemukan 11.938;
+- field UMKM, keluarga ditemukan/tak ditemukan, hasil lapangan, pemeriksa, tanggal, realisasi manual, dan dokumentasi tetap manual karena tidak mempunyai pasangan sumber yang definisinya cukup tepat;
+- layout Uji Petik memakai gaya netral mendekati template resmi: latar putih, header abu-abu ringan, border tipis, freeze tiga baris, footer halaman, dan total formula tanpa banyak warna;
+- tampilan standar hanya memperlihatkan identitas PPL/PML, tiga target, Usaha Keluarga, `Keterangan Hasil Uji Petik`, serta realisasi otomatis; kelompok UMKM, Keluarga, pemeriksa/tanggal uji petik, realisasi manual, dan dokumentasi disembunyikan karena tidak mempunyai sumber terverifikasi. Kolom fisik tetap dipertahankan untuk kompatibilitas dan preservasi data manual;
+- `Keterangan Hasil Uji Petik` adalah input teks bebas di kolom P, memiliki lebar 38, wrap text, dan dipertahankan menggunakan stable key; tidak memakai dropdown kategori;
+- sheet `LK Termin 1` dan `Uji Petik` tidak memakai objek Excel Table/format `Ctrl+T`, hanya range biasa dengan border dan formula;
+- stable key tetap `periode::pplKey`; QA berhasil memetakan 394 stable key unik dan mempertahankan seluruh entry dari laporan sebelumnya;
+- workbook QA: `storage/reports/LK_PPK_BIREUEN_2026_TERMIN_1_FINAL_UJI_PETIK_QA.xlsx`.

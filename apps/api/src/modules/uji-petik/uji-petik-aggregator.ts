@@ -60,14 +60,13 @@ export function aggregateUjiPetikByPpl(rows: CanonicalRow[], source: ProgressWor
     if (targets.length === 1 && targets[0] !== metric.targetCombined) {
       anomalies.push({
         code: 'UJI_PETIK_TARGET_MISMATCH',
-        severity: 'error',
-        message: 'Target U&K workbook progres berbeda dengan target sheet assignment aktif.',
+        severity: 'warning',
+        message: 'Target U&K workbook progres berbeda dengan target sheet assignment aktif; Uji Petik menggunakan target workbook progres.',
         sourceRows: sourceRowNumbers,
         entityType: 'subsls',
         entityKey: kodeSubSls,
         metadata: { kodeSubSls, dataMentahTarget: targets[0], progressTarget: metric.targetCombined, progressWorkbookHash: source.sourceHash },
       });
-      continue;
     }
 
     const pplKey = pplKeys[0] as string;

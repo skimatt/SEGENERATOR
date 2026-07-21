@@ -12,7 +12,7 @@ import { renderWorkbook } from '../excel/excel-renderer.js';
 import { ProgressWorkbookReader } from '../uji-petik/progress-workbook-reader.js';
 import { aggregateUjiPetikByPpl } from '../uji-petik/uji-petik-aggregator.js';
 
-const strictBlockingCodes = new Set(['SUBSLS_CODE_MISSING', 'TARGET_CONFLICT', 'NUMBER_PARSE_ERROR', 'IDENTITY_UNRESOLVED', 'UJI_PETIK_TARGET_MISMATCH']);
+const strictBlockingCodes = new Set(['SUBSLS_CODE_MISSING', 'TARGET_CONFLICT', 'NUMBER_PARSE_ERROR', 'IDENTITY_UNRESOLVED']);
 
 export function isStrictBlockingCode(code: string): boolean {
   return strictBlockingCodes.has(code);

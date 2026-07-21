@@ -671,7 +671,7 @@ MANUAL_DATA_PRESERVATION_REQUIRED=true
 Workbook progres FASIH disimpan lokal dan dipasang read-only ke container API:
 
 ```text
-PROGRESS_WORKBOOK_PATH=./data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx
+PROGRESS_WORKBOOK_PATH=./data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx
 ```
 
 Tidak perlu menyalin seluruh workbook ke Google Spreadsheet. `DATA_MENTAH2` menjadi sumber aktif identitas dan assignment PPL; `DATA_MENTAH` tetap tersedia sebagai alternatif rollback, sedangkan workbook progres menjadi sumber metrik berdasarkan `Kode SubSLS`.

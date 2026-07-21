@@ -65,7 +65,7 @@ Kolom manual `Uji Petik` dibaca dari laporan terakhir dan dipetakan kembali deng
 Simpan export FASIH berikut pada lokasi tetap:
 
 ```text
-data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx
+data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx
 ```
 
 Tidak perlu mengunggah delapan sheet ke Google Spreadsheet. Saat dashboard atau generator laporan dijalankan, API membaca workbook tersebut secara read-only, mencocokkan `Kode SubSLS` dengan assignment pada sheet aktif (`DATA_MENTAH2` secara default), lalu mengagregasikan metrik per email PPL.
@@ -74,12 +74,17 @@ Untuk memperbarui data, unduh export FASIH terbaru dan ganti file pada lokasi ya
 
 Field otomatis dari workbook progres:
 
+- Target U&K;
 - Target Usaha;
 - Target Keluarga (`Target U&K - Target Usaha` per SubSLS);
 - Usaha Keluarga ditemukan;
 - Usaha Keluarga tak ditemukan.
 
+Jika target workbook progres berbeda dari `DATA_MENTAH2`, sistem tetap mencatat `UJI_PETIK_TARGET_MISMATCH` sebagai warning yang dapat diaudit. Baris Uji Petik memakai target workbook progres agar ketiga kolom target tetap konsisten; target LK Termin 1 tetap mengikuti aturan agregasi assignment.
+
 Field UMKM dan Keluarga tetap manual karena workbook belum menyediakan pasangan ditemukan/tak ditemukan dengan definisi yang cukup eksplisit. Nilai manual lama selalu dipertahankan dan memiliki prioritas saat generate ulang.
+
+Pada tampilan standar sheet `Uji Petik`, kelompok tanpa sumber terverifikasi disembunyikan agar laporan ringkas dan tidak menampilkan kolom kosong: UMKM, Keluarga, pemeriksa/tanggal uji petik, realisasi manual, dan dokumentasi. Kolom `Keterangan Hasil Uji Petik` tetap ditampilkan sebagai teks bebas dan dipertahankan saat generate ulang melalui stable key. Kolom tersembunyi tidak dihapus dari struktur internal sehingga data manual lama tetap aman. Kedua sheet menggunakan range biasa, bukan objek Excel Table/format `Ctrl+T`.
 
 ## Pemeriksaan kualitas
 

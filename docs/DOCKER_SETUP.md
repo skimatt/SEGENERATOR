@@ -72,7 +72,7 @@ File rahasia dan data operasional tidak disimpan di Git. Salin dua file berikut 
 SEGENERATOR/
 ├── umkm-479223-fddd8281bf40.json
 └── data/
-    └── Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx
+    └── Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx
 ```
 
 Ketentuan:
@@ -115,7 +115,7 @@ Pastikan Docker Desktop aktif, lalu dari root proyek jalankan:
 Test-Path .env
 Test-Path .\umkm-479223-fddd8281bf40.json
 Test-Path '.\templates\LK PPK  TEMPLATES.xlsx'
-Test-Path '.\data\Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx'
+Test-Path '.\data\Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx'
 docker compose config --quiet
 ```
 
@@ -229,7 +229,7 @@ Salin ke media backup yang aman:
 backup/segenerator.dump
 .env
 umkm-479223-fddd8281bf40.json
-data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx
+data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx
 storage/reports/
 storage/snapshots/
 ```
@@ -308,7 +308,7 @@ Pastikan ID spreadsheet dan nama sheet pada `.env` benar, tanpa spasi tambahan.
 Pastikan file tersedia tepat pada:
 
 ```text
-data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx
+data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx
 ```
 
 ### Port sudah digunakan

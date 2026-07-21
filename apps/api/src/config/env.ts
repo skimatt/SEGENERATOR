@@ -13,7 +13,7 @@ const envSchema = z.object({
   REPORT_TEMPLATE_PATH: z.string().default('./templates/LK PPK  TEMPLATES.xlsx'),
   REPORT_OUTPUT_DIR: z.string().default('./storage/reports'),
   SNAPSHOT_DIR: z.string().default('./storage/snapshots'),
-  PROGRESS_WORKBOOK_PATH: z.string().min(1).default('./data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS.xlsx'),
+  PROGRESS_WORKBOOK_PATH: z.string().min(1).default('./data/Export_Progres_Pendataan_Sub_Satuan_Lingkungan_Setempat_Sub-SLS-terbaru.xlsx'),
   DEFAULT_PROCESSING_MODE: z.enum(['strict', 'permissive']).default('strict'),
   REPORT_PERIOD: z.string().min(1).default('2026_TERMIN_1'),
   WEB_ORIGIN: z.string().default('http://localhost:5173'),

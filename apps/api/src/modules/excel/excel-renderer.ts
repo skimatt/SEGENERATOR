@@ -103,17 +103,105 @@ function styleGrandTotal(sheet: ExcelJS.Worksheet, rowNumber: number): void {
   sheet.getRow(rowNumber).height = 24;
 }
 
+function styleCountSummaryRow(sheet: ExcelJS.Worksheet, rowNumber: number, emphasized: boolean): void {
+  const fillColor = emphasized ? 'FFD9EAD3' : 'FFF2F2F2';
+  for (let column = 2; column <= 15; column += 1) {
+    const cell = sheet.getRow(rowNumber).getCell(column);
+    cell.font = { ...cell.font, bold: true, color: { argb: 'FF1F2937' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+    cell.alignment = { horizontal: column <= 10 ? 'left' : 'center', vertical: 'middle', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF64748B' } },
+      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      bottom: { style: 'thin', color: { argb: 'FF64748B' } },
+      right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    };
+  }
+  sheet.getRow(rowNumber).height = 22;
+}
+
+function renderCountSummaryRow(sheet: ExcelJS.Worksheet, rowNumber: number, label: string, formula: string, emphasized = false): void {
+  set(sheet, 'B', rowNumber, label);
+  sheet.mergeCells(buildRange('B', rowNumber, 'J', rowNumber));
+  set(sheet, 'K', rowNumber, { formula });
+  sheet.mergeCells(buildRange('K', rowNumber, 'O', rowNumber));
+  sheet.getCell(`K${rowNumber}`).numFmt = '#,##0';
+  styleCountSummaryRow(sheet, rowNumber, emphasized);
+}
+
+function percentageFormula(numerator: string, denominator: string): ExcelJS.CellFormulaValue {
+  return { formula: `IF(OR(${denominator}="",${denominator}=0),"",${numerator}/${denominator}*100)` };
+}
+
+function optionalPercentageFormula(numerator: string, denominator: string): ExcelJS.CellFormulaValue {
+  return { formula: `IF(OR(${numerator}="",${denominator}="",${denominator}=0),"",${numerator}/${denominator}*100)` };
+}
+
+function uniqueTargetSumFormula(startRow: number, endRow: number, flagColumn: string): ExcelJS.CellFormulaValue {
+  return { formula: `IF(COUNT(K${startRow}:K${endRow})=0,"",SUMIF(${flagColumn}${startRow}:${flagColumn}${endRow},1,K${startRow}:K${endRow}))` };
+}
+
+function flaggedCapaianSumFormula(startRow: number, endRow: number): ExcelJS.CellFormulaValue {
+  return { formula: `SUMIF(R${startRow}:R${endRow},1,L${startRow}:L${endRow})` };
+}
+
 function styleTemplate2DataRow(sheet: ExcelJS.Worksheet, rowNumber: number): void {
-  const automaticColumns = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'I', 'J', 'K', 'L', 'O', 'S', 'T', 'V']);
-  const manualColumns = new Set(['G', 'H', 'M', 'N', 'P', 'Q', 'R', 'U', 'W']);
-  for (const column of automaticColumns) {
-    const cell = sheet.getCell(`${column}${rowNumber}`);
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2F0D9' } };
+  for (let column = 1; column <= 23; column += 1) {
+    const cell = sheet.getRow(rowNumber).getCell(column);
+    const columnLetter = sheet.getColumn(column).letter;
+    cell.font = { ...cell.font, name: 'Calibri', size: 10, color: { argb: 'FF1F2937' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+      left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+      bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+      right: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+    };
+    cell.alignment = { horizontal: ['B', 'C', 'P', 'Q', 'W'].includes(columnLetter) ? 'left' : 'center', vertical: 'middle', wrapText: true };
   }
-  for (const column of manualColumns) {
-    const cell = sheet.getCell(`${column}${rowNumber}`);
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+  sheet.getRow(rowNumber).height = 30;
+}
+
+function styleTemplate2Header(sheet: ExcelJS.Worksheet, permissive: boolean): void {
+  sheet.getCell('A1').value = permissive ? 'SE2026 — RINGKASAN UJI PETIK PER PPL — PERLU VERIFIKASI' : 'SE2026 — RINGKASAN UJI PETIK PER PPL';
+  sheet.getCell('A1').font = { name: 'Calibri', size: 14, bold: true, color: { argb: permissive ? 'FF991B1B' : 'FF111827' } };
+  sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+  sheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getRow(1).height = 26;
+
+  for (let row = 2; row <= 3; row += 1) {
+    for (let column = 1; column <= 23; column += 1) {
+      const cell = sheet.getRow(row).getCell(column);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: row === 2 ? 'FFE5E7EB' : 'FFF3F4F6' } };
+      cell.font = { name: 'Calibri', size: row === 2 ? 10 : 9, bold: true, color: { argb: 'FF111827' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+        left: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+        bottom: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+        right: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+      };
+    }
   }
+  sheet.getRow(2).height = 28;
+  sheet.getRow(3).height = 24;
+}
+
+function styleTemplate2Summary(sheet: ExcelJS.Worksheet, rowNumber: number): void {
+  for (let column = 1; column <= 23; column += 1) {
+    const cell = sheet.getRow(rowNumber).getCell(column);
+    const columnLetter = sheet.getColumn(column).letter;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+    cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF111827' } };
+    cell.alignment = { horizontal: ['B', 'P', 'W'].includes(columnLetter) ? 'left' : 'center', vertical: 'middle', wrapText: true };
+    cell.border = {
+      top: { style: 'medium', color: { argb: 'FF6B7280' } },
+      left: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+      bottom: { style: 'medium', color: { argb: 'FF6B7280' } },
+      right: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+    };
+  }
+  sheet.getRow(rowNumber).height = 32;
 }
 
 function hasManualValue(value: ExcelJS.CellValue | undefined): boolean {
@@ -130,7 +218,8 @@ function sameScalarValue(left: ExcelJS.CellValue | undefined, right: ExcelJS.Cel
 }
 
 function setSemanticFill(cell: ExcelJS.Cell, automatic: boolean): void {
-  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: automatic ? 'FFE2F0D9' : 'FFFFF2CC' } };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+  if (!automatic) cell.font = { ...cell.font, italic: true };
 }
 
 function validIdentitiesFirst<T>(items: T[], identity: (item: T) => string | null): T[] {
@@ -142,26 +231,34 @@ function validIdentitiesFirst<T>(items: T[], identity: (item: T) => string | nul
 }
 
 function renderTemplate1(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, permissive: boolean): void {
-  const detailStyle = snapshotRowStyle(sheet, 8, 2, 18);
-  const subtotalStyle = snapshotRowStyle(sheet, 402, 2, 18);
+  const detailStyle = snapshotRowStyle(sheet, 8, 2, 22);
+  const subtotalStyle = snapshotRowStyle(sheet, 402, 2, 22);
   const officialNote = structuredClone(sheet.getCell('O8').value ?? officialNoteFallback);
   clearRowsFrom(sheet, template1Mapping.dataStartRow);
 
   const sourceRows = new Map(pipeline.rows.map((row) => [row.sourceRowNumber, row]));
   const countedTargetKeys = new Set<string>();
+  const countedPplKeys = new Set<string>();
   const detailRows: number[] = [];
   let rowNumber = template1Mapping.dataStartRow;
   let pplSequence = 1;
 
   for (const pml of validIdentitiesFirst(pipeline.aggregation.pmls, (item) => item.namaPml)) {
     const pmlStart = rowNumber;
+    const countedPmlTargetKeys = new Set<string>();
+    let isFirstPmlDetail = true;
     for (const ppl of validIdentitiesFirst(pml.ppls, (item) => item.namaPpl)) {
       const pplStart = rowNumber;
+      const isUniquePpl = !countedPplKeys.has(ppl.pplKey);
+      countedPplKeys.add(ppl.pplKey);
+      let isFirstPplDetail = true;
       for (const subsls of ppl.subsls) {
         applyRowStyle(sheet, rowNumber, detailStyle);
         const code = splitSubSlsCode(subsls.kodeSubSls);
         const uniqueTargetFlag = countedTargetKeys.has(subsls.subslsKey) ? 0 : 1;
         countedTargetKeys.add(subsls.subslsKey);
+        const pmlUniqueTargetFlag = countedPmlTargetKeys.has(subsls.subslsKey) ? 0 : 1;
+        countedPmlTargetKeys.add(subsls.subslsKey);
         set(sheet, mapped(template1Mapping.columns, 'no'), rowNumber, rowNumber === pplStart ? pplSequence : null);
         set(sheet, mapped(template1Mapping.columns, 'namaPml'), rowNumber, pml.namaPml);
         set(sheet, mapped(template1Mapping.columns, 'emailPml'), rowNumber, pml.emailPml);
@@ -172,21 +269,27 @@ function renderTemplate1(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, per
         set(sheet, mapped(template1Mapping.columns, 'kodeSls'), rowNumber, code.sls);
         set(sheet, mapped(template1Mapping.columns, 'target'), rowNumber, subsls.target);
         set(sheet, mapped(template1Mapping.columns, 'capaian'), rowNumber, contributionFor(subsls, ppl.pplKey, pml.pmlKey, sourceRows));
-        set(sheet, mapped(template1Mapping.columns, 'percentage'), rowNumber, { formula: `IFERROR(L${rowNumber}/K${rowNumber}*100,0)` });
+        set(sheet, mapped(template1Mapping.columns, 'percentage'), rowNumber, percentageFormula(`L${rowNumber}`, `K${rowNumber}`));
         set(sheet, mapped(template1Mapping.columns, 'subslsKey'), rowNumber, subsls.subslsKey);
         set(sheet, mapped(template1Mapping.columns, 'uniqueTargetFlag'), rowNumber, uniqueTargetFlag);
         set(sheet, mapped(template1Mapping.columns, 'detailFlag'), rowNumber, 1);
+        set(sheet, mapped(template1Mapping.columns, 'pmlUniqueTargetFlag'), rowNumber, pmlUniqueTargetFlag);
+        set(sheet, mapped(template1Mapping.columns, 'uniquePplFlag'), rowNumber, isFirstPplDetail && isUniquePpl ? 1 : 0);
+        set(sheet, mapped(template1Mapping.columns, 'pplGroupFlag'), rowNumber, isFirstPplDetail ? 1 : 0);
+        set(sheet, mapped(template1Mapping.columns, 'pmlGroupFlag'), rowNumber, isFirstPmlDetail ? 1 : 0);
         for (const column of ['G', 'H', 'I', 'P']) sheet.getCell(`${column}${rowNumber}`).numFmt = '@';
         sheet.getCell(`M${rowNumber}`).numFmt = '0.00';
         alignTemplate1Detail(sheet, rowNumber);
         detailRows.push(rowNumber);
+        isFirstPplDetail = false;
+        isFirstPmlDetail = false;
         rowNumber += 1;
       }
 
       const pplEnd = rowNumber - 1;
       if (pplEnd >= pplStart) {
         set(sheet, mapped(template1Mapping.columns, 'percentageSls'), pplStart, { formula: `IFERROR(COUNTIF(L${pplStart}:L${pplEnd},">0")/ROWS(L${pplStart}:L${pplEnd})*100,0)` });
-        set(sheet, mapped(template1Mapping.columns, 'percentagePpl'), pplStart, { formula: `IFERROR(SUM(L${pplStart}:L${pplEnd})/SUM(K${pplStart}:K${pplEnd})*100,0)` });
+        set(sheet, mapped(template1Mapping.columns, 'percentagePpl'), pplStart, percentageFormula(`SUM(L${pplStart}:L${pplEnd})`, `SUM(K${pplStart}:K${pplEnd})`));
         sheet.getCell(`J${pplStart}`).numFmt = '0.00';
         sheet.getCell(`N${pplStart}`).numFmt = '0.00';
         for (const column of ['B', 'E', 'F', 'J', 'N']) mergeVertical(sheet, column, pplStart, pplEnd);
@@ -201,11 +304,12 @@ function renderTemplate1(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, per
       applyRowStyle(sheet, rowNumber, subtotalStyle);
       set(sheet, 'B', rowNumber, `Subtotal PML: ${pml.namaPml ?? pml.pmlKey}`);
       sheet.mergeCells(buildRange('B', rowNumber, 'J', rowNumber));
-      set(sheet, 'K', rowNumber, { formula: `SUMPRODUCT(K${pmlStart}:K${pmlDetailEnd},Q${pmlStart}:Q${pmlDetailEnd})` });
-      set(sheet, 'L', rowNumber, { formula: `SUMPRODUCT(L${pmlStart}:L${pmlDetailEnd},R${pmlStart}:R${pmlDetailEnd})` });
-      set(sheet, 'M', rowNumber, { formula: `IFERROR(L${rowNumber}/K${rowNumber}*100,0)` });
+      set(sheet, 'K', rowNumber, uniqueTargetSumFormula(pmlStart, pmlDetailEnd, 'S'));
+      set(sheet, 'L', rowNumber, flaggedCapaianSumFormula(pmlStart, pmlDetailEnd));
+      set(sheet, 'M', rowNumber, percentageFormula(`L${rowNumber}`, `K${rowNumber}`));
       sheet.getCell(`M${rowNumber}`).numFmt = '0.00';
       set(sheet, 'R', rowNumber, 0);
+      set(sheet, 'S', rowNumber, 0);
       stylePmlSubtotal(sheet, rowNumber);
       rowNumber += 1;
     }
@@ -215,15 +319,23 @@ function renderTemplate1(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, per
   applyRowStyle(sheet, rowNumber, subtotalStyle);
   set(sheet, 'B', rowNumber, 'Jumlah');
   sheet.mergeCells(buildRange('B', rowNumber, 'J', rowNumber));
-  set(sheet, 'K', rowNumber, { formula: `SUMPRODUCT(K${template1Mapping.dataStartRow}:K${lastBodyRow},Q${template1Mapping.dataStartRow}:Q${lastBodyRow})` });
-  set(sheet, 'L', rowNumber, { formula: `SUMPRODUCT(L${template1Mapping.dataStartRow}:L${lastBodyRow},R${template1Mapping.dataStartRow}:R${lastBodyRow})` });
-  set(sheet, 'M', rowNumber, { formula: `IFERROR(L${rowNumber}/K${rowNumber}*100,0)` });
+  set(sheet, 'K', rowNumber, uniqueTargetSumFormula(template1Mapping.dataStartRow, lastBodyRow, 'Q'));
+  set(sheet, 'L', rowNumber, flaggedCapaianSumFormula(template1Mapping.dataStartRow, lastBodyRow));
+  set(sheet, 'M', rowNumber, percentageFormula(`L${rowNumber}`, `K${rowNumber}`));
   set(sheet, 'N', rowNumber, { formula: `IFERROR(COUNTIF(L${template1Mapping.dataStartRow}:L${lastBodyRow},">0")/${detailRows.length}*100,0)` });
-  set(sheet, 'O', rowNumber, { formula: `IF(M${rowNumber}>=40,"Bisa Dibayar karena lebih dari 40%","Belum memenuhi 40%")` });
+  set(sheet, 'O', rowNumber, { formula: `IF(M${rowNumber}="","Perlu verifikasi target",IF(M${rowNumber}>=40,"Bisa Dibayar karena lebih dari 40%","Belum memenuhi 40%"))` });
   sheet.getCell(`M${rowNumber}`).numFmt = '0.00';
   sheet.getCell(`N${rowNumber}`).numFmt = '0.00';
   styleGrandTotal(sheet, rowNumber);
   const totalRow = rowNumber;
+  const totalPmlRow = totalRow + 1;
+  const totalUniquePplRow = totalRow + 2;
+  const totalPplGroupRow = totalRow + 3;
+  renderCountSummaryRow(sheet, totalPmlRow, 'Total PML', `SUM(V${template1Mapping.dataStartRow}:V${lastBodyRow})`);
+  renderCountSummaryRow(sheet, totalUniquePplRow, 'Total PPL Unik (berdasarkan identity key)', `SUM(T${template1Mapping.dataStartRow}:T${lastBodyRow})`);
+  renderCountSummaryRow(sheet, totalPplGroupRow, 'Total Kelompok PPL–PML (sesuai nomor terakhir)', `SUM(U${template1Mapping.dataStartRow}:U${lastBodyRow})`, true);
+  sheet.getRow(totalRow).addPageBreak(2, 15);
+  const finalRow = totalPplGroupRow;
 
   if (detailRows.length > 0) {
     const noteEnd = Math.min(25, lastBodyRow);
@@ -231,11 +343,11 @@ function renderTemplate1(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, per
     mergeVertical(sheet, 'O', template1Mapping.dataStartRow, noteEnd);
   }
 
-  for (const column of ['P', 'Q', 'R']) {
+  for (const column of ['P', 'Q', 'R', 'S', 'T', 'U', 'V']) {
     sheet.getColumn(column).hidden = true;
     sheet.getColumn(column).width = column === 'P' ? 32 : 4;
   }
-  sheet.pageSetup.printArea = buildRange('B', 2, 'O', totalRow);
+  sheet.pageSetup.printArea = buildRange('B', 2, 'O', finalRow);
   sheet.pageSetup.printTitlesRow = '5:7';
   sheet.pageSetup.orientation = 'landscape';
   sheet.pageSetup.fitToPage = true;
@@ -247,23 +359,27 @@ function renderTemplate1(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, per
   delete (sheet.properties as { outlineProperties?: { summaryBelow: boolean; summaryRight: boolean } }).outlineProperties;
   sheet.views = [{ state: 'normal', showGridLines: true, zoomScale: 65 }];
   sheet.headerFooter = { ...sheet.headerFooter, oddFooter: '&L LK PPK BPS Bireuen&C Halaman &P dari &N&R &D' };
-  if (sheet.rowCount > totalRow) sheet.spliceRows(totalRow + 1, sheet.rowCount - totalRow);
+  if (sheet.rowCount > finalRow) sheet.spliceRows(finalRow + 1, sheet.rowCount - finalRow);
 }
 
 function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, manual: Map<string, ManualValues>, permissive: boolean, ujiPetikByPpl: Map<string, UjiPetikPplMetrics>): void {
   const detailStyle = snapshotRowStyle(sheet, 4, 1, 23);
   clearRowsFrom(sheet, template2Mapping.dataStartRow);
+  styleTemplate2Header(sheet, permissive);
+  sheet.getCell('P2').value = 'KETERANGAN HASIL UJI PETIK';
+  sheet.mergeCells('P2:P3');
+  sheet.getCell('P2').alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
   sheet.getCell('S2').value = 'REALISASI OTOMATIS';
   sheet.getCell('U2').value = 'REALISASI MANUAL';
-  sheet.getCell('W1').value = 'Hijau = data otomatis | Kuning = input manual';
-  sheet.getCell('W1').font = { name: 'Arial', size: 8, bold: true, color: { argb: 'FF475569' } };
-  sheet.getCell('W1').alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+  sheet.getCell('D3').note = 'Target U&K bersumber dari PROGRES PENDATAAN agar konsisten dengan Target Usaha dan Target Keluarga. Perbedaan dengan DATA_MENTAH2 tetap dicatat sebagai anomali audit.';
   sheet.getCell('E3').note = 'Target Usaha bersumber dari sheet USAHA PERUSAHAAN dan dijumlahkan berdasarkan SubSLS milik PPL.';
   sheet.getCell('F3').note = 'Target Keluarga dihitung sebagai Target U&K dikurangi Target Usaha per SubSLS.';
   sheet.getCell('G3').note = 'Definisi UMKM ditemukan belum dapat dipetakan secara pasti dari workbook progres; tetap input manual.';
+  sheet.getCell('H3').note = 'Workbook progres tidak menyediakan UMKM tak ditemukan secara eksplisit; tetap input manual.';
   sheet.getCell('J3').note = 'Usaha Keluarga ditemukan bersumber dari sheet USAHA KELUARGA.';
   sheet.getCell('K3').note = 'Usaha Keluarga tak ditemukan bersumber dari sheet USAHA KELUARGA.';
   sheet.getCell('M3').note = 'Keluarga ditemukan/tak ditemukan tidak tersedia eksplisit pada workbook progres; tetap input manual.';
+  sheet.getCell('P2').note = 'Isi penjelasan hasil uji petik secara bebas. Nilai dipertahankan berdasarkan stable key saat laporan dibuat ulang.';
   sheet.getCell('U3').note = 'Kolom realisasi kategori kedua bersifat manual dan dipertahankan saat generate ulang.';
   const hiddenHeaders = Object.entries(template2Mapping.columns).filter(([, column]) => column.length > 1 || ['X', 'Y', 'Z'].includes(column));
   for (const [field, column] of hiddenHeaders) set(sheet, column, template2Mapping.headerRow, field);
@@ -278,13 +394,13 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
       no: sequence,
       namaPpl: ppl.namaPpl,
       namaPml: ppl.namaPml,
-      target: ppl.assignedTarget,
+      target: progressMetrics?.targetCombined ?? null,
       umkmTotal: { formula: `IF(COUNTA(G${rowNumber}:H${rowNumber})=0,"",SUM(G${rowNumber}:H${rowNumber}))` },
       usahaKeluargaTotal: { formula: `IF(COUNTA(J${rowNumber}:K${rowNumber})=0,"",SUM(J${rowNumber}:K${rowNumber}))` },
       keluargaTotal: { formula: `IF(COUNTA(M${rowNumber}:N${rowNumber})=0,"",SUM(M${rowNumber}:N${rowNumber}))` },
       capaian: ppl.totalCapaian,
-      percentage: { formula: `IFERROR(S${rowNumber}/D${rowNumber}*100,0)` },
-      percentageKategoriLain: { formula: `IFERROR(U${rowNumber}/D${rowNumber}*100,0)` },
+      percentage: percentageFormula(`S${rowNumber}`, `D${rowNumber}`),
+      percentageKategoriLain: optionalPercentageFormula(`U${rowNumber}`, `D${rowNumber}`),
       stableKey,
       emailPpl: ppl.emailPpl,
       emailPml: ppl.emailPml,
@@ -323,7 +439,17 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
     sheet.getCell(`A${rowNumber}`).numFmt = '0';
     for (const column of ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'S', 'U']) sheet.getCell(`${column}${rowNumber}`).numFmt = '0';
     for (const column of ['T', 'V']) sheet.getCell(`${column}${rowNumber}`).numFmt = '0.00';
-    sheet.getCell(`P${rowNumber}`).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Sesuai,Tidak Sesuai,Perlu Tindak Lanjut"'] };
+    for (const column of ['G', 'H', 'M', 'N', 'U']) {
+      sheet.getCell(`${column}${rowNumber}`).dataValidation = {
+        type: 'whole',
+        operator: 'greaterThanOrEqual',
+        allowBlank: true,
+        showErrorMessage: true,
+        errorTitle: 'Nilai tidak valid',
+        error: 'Masukkan bilangan bulat nol atau lebih besar.',
+        formulae: [0],
+      };
+    }
     sheet.getCell(`R${rowNumber}`).numFmt = 'dd/mm/yyyy';
     styleTemplate2DataRow(sheet, rowNumber);
     for (const field of ['targetUsaha', 'targetKeluarga', 'usahaKeluargaDitemukan', 'usahaKeluargaTidakDitemukan'] as const) {
@@ -338,31 +464,45 @@ function renderTemplate2(sheet: ExcelJS.Worksheet, pipeline: PipelineResult, man
 
   const lastDataRow = rowNumber - 1;
   const summaryRow = rowNumber + 1;
-  set(sheet, 'O', summaryRow, 'Jumlah Uji Petik Terisi');
-  set(sheet, 'P', summaryRow, { formula: `COUNTA(P${template2Mapping.dataStartRow}:P${lastDataRow})` });
-  sheet.getCell(`O${summaryRow}`).font = { ...sheet.getCell('O3').font, bold: true };
-  sheet.getCell(`P${summaryRow}`).font = { ...sheet.getCell('P3').font, bold: true };
-  if (permissive) {
-    sheet.getCell('A1').value = 'SE2026 - Sensus Ekonomi — PERLU VERIFIKASI';
-    sheet.getCell('A1').font = { ...sheet.getCell('A1').font, color: { argb: 'FFC00000' }, bold: true };
+  set(sheet, 'A', summaryRow, 'TOTAL');
+  set(sheet, 'B', summaryRow, { formula: `COUNTA(B${template2Mapping.dataStartRow}:B${lastDataRow})&" PPL"` });
+  for (const column of ['D', 'E', 'F', 'J', 'K', 'L', 'S']) {
+    set(sheet, column, summaryRow, { formula: `SUM(${column}${template2Mapping.dataStartRow}:${column}${lastDataRow})` });
+    sheet.getCell(`${column}${summaryRow}`).numFmt = '#,##0';
   }
+  for (const column of ['G', 'H', 'I', 'M', 'N', 'O', 'U']) {
+    set(sheet, column, summaryRow, { formula: `IF(COUNT(${column}${template2Mapping.dataStartRow}:${column}${lastDataRow})=0,"",SUM(${column}${template2Mapping.dataStartRow}:${column}${lastDataRow}))` });
+    sheet.getCell(`${column}${summaryRow}`).numFmt = '#,##0';
+  }
+  set(sheet, 'P', summaryRow, { formula: `COUNTA(P${template2Mapping.dataStartRow}:P${lastDataRow})&" terisi"` });
+  set(sheet, 'T', summaryRow, percentageFormula(`S${summaryRow}`, `D${summaryRow}`));
+  set(sheet, 'V', summaryRow, { formula: `IF(COUNT(U${template2Mapping.dataStartRow}:U${lastDataRow})=0,"",IF(OR(D${summaryRow}="",D${summaryRow}=0),"",U${summaryRow}/D${summaryRow}*100))` });
+  sheet.getCell(`T${summaryRow}`).numFmt = '0.00';
+  sheet.getCell(`V${summaryRow}`).numFmt = '0.00';
+  set(sheet, 'W', summaryRow, 'Kolom tanpa sumber terverifikasi disembunyikan');
+  styleTemplate2Summary(sheet, summaryRow);
   for (let column = 24; column <= 49; column += 1) {
     sheet.getColumn(column).hidden = true;
     sheet.getColumn(column).width = column === 24 ? 34 : 16;
   }
   sheet.getColumn('A').width = 5.5;
-  for (const [column, width] of [['S', 10], ['T', 9], ['U', 10], ['V', 9]] as const) {
+  for (const [column, width] of [
+    ['B', 24], ['C', 22], ['D', 11], ['E', 11], ['F', 11],
+    ['J', 13], ['K', 14], ['L', 11], ['P', 38], ['S', 12], ['T', 11],
+  ] as const) {
     sheet.getColumn(column).hidden = false;
     sheet.getColumn(column).width = width;
   }
+  for (const column of ['G', 'H', 'I', 'M', 'N', 'O', 'Q', 'R', 'U', 'V', 'W']) sheet.getColumn(column).hidden = true;
   sheet.views = [{ state: 'frozen', ySplit: 3, showGridLines: false, activeCell: 'A4' }];
-  sheet.pageSetup.printArea = buildRange('A', 1, 'W', summaryRow);
+  sheet.pageSetup.printArea = buildRange('A', 1, 'T', summaryRow);
   sheet.pageSetup.printTitlesRow = '1:3';
   sheet.pageSetup.orientation = 'landscape';
   sheet.pageSetup.paperSize = 9;
   sheet.pageSetup.fitToPage = true;
   sheet.pageSetup.fitToWidth = 1;
   sheet.pageSetup.fitToHeight = 0;
+  sheet.headerFooter = { ...sheet.headerFooter, oddFooter: '&L Uji Petik SE2026&C Halaman &P dari &N&R &D' };
   if (sheet.rowCount > summaryRow) sheet.spliceRows(summaryRow + 1, sheet.rowCount - summaryRow);
 }
 
